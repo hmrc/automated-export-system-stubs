@@ -1,22 +1,37 @@
+import play.sbt.PlayImport.PlayKeys
 import uk.gov.hmrc.DefaultBuildSettings
 
+val appName = "automated-export-system-stubs"
+
 ThisBuild / majorVersion := 0
-ThisBuild / scalaVersion := "3.3.6"
-ThisBuild / scalacOptions += "-Wconf:msg=Flag.*repeatedly:s"
+ThisBuild / scalaVersion := "3.3.8"
+ThisBuild / scalacOptions ++= Seq(
+  "-Wconf:src=routes/.*:s", // Silence all warnings in generated routes
+  "-Xlint:all",
+  "-Werror"
+)
 
-lazy val microservice = Project("automated-export-system-stubs", file("."))
+lazy val microservice = Project(appName, file("."))
   .enablePlugins(play.sbt.PlayScala, SbtDistributablesPlugin)
-  .disablePlugins(JUnitXmlReportPlugin) //Required to prevent https://github.com/scalatest/scalatest/issues/1427
+  .disablePlugins(JUnitXmlReportPlugin)
   .settings(
+    scalafmtOnCompile := true,
     libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test,
-    // https://www.scala-lang.org/2021/01/12/configuring-and-suppressing-warnings.html
-    // suppress warnings in generated routes files
-    scalacOptions += "-Wconf:src=routes/.*:s",
+    PlayKeys.playDefaultPort := 5000,
+    CodeCoverageSettings.settings
   )
-  .settings(CodeCoverageSettings.settings: _*)
+  .settings(scalacOptions ~= (options => options.distinct))
+  .settings(
+    addCommandAlias("runTestOnly", "run -Dplay.http.router=testOnlyDoNotUseInAppConf.Routes")
+  )
 
-lazy val it = project
+lazy val it = (project in file("it"))
   .enablePlugins(PlayScala)
   .dependsOn(microservice % "test->test")
-  .settings(DefaultBuildSettings.itSettings())
-  .settings(libraryDependencies ++= AppDependencies.it)
+  .disablePlugins(JUnitXmlReportPlugin)
+  .settings(
+    scalafmtOnCompile := true,
+    Test / unmanagedSourceDirectories ++= Seq(baseDirectory.value / "it"),
+    DefaultBuildSettings.itSettings()
+  )
+  .settings(scalacOptions ~= (options => options.distinct))

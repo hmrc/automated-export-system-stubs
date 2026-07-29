@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs
+package uk.gov.hmrc.automatedexportsystemstubs.controllers
 
-import play.api.{Configuration, Environment}
-import play.api.inject.{Binding, Module => AppModule}
+import play.api.http.Status
+import play.api.test.Helpers.*
+import play.api.test.Helpers
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
 
-import java.time.Clock
+class MessageControllerSpec extends BaseSpec:
+  private val controller = new MessageController(Helpers.stubControllerComponents())
 
-class Module extends AppModule:
+  "GET /" - {
+    "return 200" in:
+      val result = controller.message()(fakeRequest)
+      status(result) shouldBe Status.OK
 
-  override def bindings(
-    environment:   Environment,
-    configuration: Configuration
-  ): Seq[Binding[_]] =
-    bind[Clock].toInstance(Clock.systemDefaultZone) :: // inject if current time needs to be controlled in unit tests
-      Nil
+  }

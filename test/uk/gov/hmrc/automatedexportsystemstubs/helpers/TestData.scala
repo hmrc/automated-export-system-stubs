@@ -21,8 +21,8 @@ import play.api.mvc.Headers
 object TestData:
   val validAuthHeaders: Headers = Headers(
     "x-forwarded-host"  -> "10.12.0.4",
-    "x-correlation-id"  -> "application/json",
-    "x-conversation-id" -> "mobile-app",
+    "x-correlation-id"  -> "some-correlation-id",
+    "x-conversation-id" -> "some-conversation-id",
     "date"              -> "2024-06-01T12:00:00Z",
     "content-type"      -> "application/xml",
     "accept"            -> "application/xml",

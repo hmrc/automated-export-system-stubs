@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs
+package uk.gov.hmrc.automatedexportsystemstubs.config
 
+import play.api.inject.{Binding, Module as AppModule}
 import play.api.{Configuration, Environment}
-import play.api.inject.{Binding, Module => AppModule}
 
 import java.time.Clock
 

@@ -16,16 +16,17 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.controllers
 
-import play.api.mvc.{Action, AnyContent, ControllerComponents}
-import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
+import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
+import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
 
 import javax.inject.{Inject, Singleton}
 
 @Singleton()
 class MessageController @Inject() (
-  cc: ControllerComponents
-) extends BackendController(cc):
+  cc: ControllerComponents,
+  validatedAction: ValidatedRequestAction
+) extends AbstractController(cc):
 
-  val message: Action[AnyContent] =
-    Action:
-      implicit request => Ok("Hello world")
+  def message(): Action[AnyContent] = validatedAction { implicit request =>
+    validatedAction.successResponse(request)
+  }

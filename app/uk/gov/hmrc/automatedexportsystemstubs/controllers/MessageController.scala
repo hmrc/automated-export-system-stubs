@@ -23,7 +23,7 @@ import javax.inject.{Inject, Singleton}
 
 @Singleton()
 class MessageController @Inject() (
-  cc: ControllerComponents,
+  cc:              ControllerComponents,
   validatedAction: ValidatedRequestAction
 ) extends AbstractController(cc):
 

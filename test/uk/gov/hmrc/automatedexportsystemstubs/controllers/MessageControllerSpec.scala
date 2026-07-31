@@ -17,16 +17,31 @@
 package uk.gov.hmrc.automatedexportsystemstubs.controllers
 
 import play.api.http.Status
+import play.api.mvc.BodyParsers
 import play.api.test.Helpers.*
 import play.api.test.Helpers
-import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
+import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec}
+import org.mockito.Mockito.when
 
-class MessageControllerSpec extends BaseSpec:
-  private val controller = new MessageController(Helpers.stubControllerComponents())
+class MessageControllerSpec extends BaseSpec with AllMocks:
 
-  "GET /" - {
-    "return 200" in:
-      val result = controller.message()(fakeRequest)
-      status(result) shouldBe Status.OK
+  trait Setup:
+    val requiredHeaders = Map("some-header" -> "header-val", "another-header" -> "another")
+    when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
+    val validatedRequestAction = ValidatedRequestAction(mock[BodyParsers.Default], mockAppConfig)
+    val controller             = new MessageController(Helpers.stubControllerComponents(), validatedRequestAction)
+
+  "POST /" - {
+
+    "return 204 when all required headers are provided" in new Setup:
+      val requestWithHeaders = fakeRequest.withHeaders(requiredHeaders.toSeq: _*)
+      val result             = controller.message()(requestWithHeaders)
+      status(result) shouldBe Status.NO_CONTENT
+
+    "return 400 when required headers are missing" in new Setup:
+      val requestWithHeaders = fakeRequest.withHeaders(("some-header", "header-value"))
+      val result             = controller.message()(requestWithHeaders)
+      status(result) shouldBe Status.BAD_REQUEST
 
   }

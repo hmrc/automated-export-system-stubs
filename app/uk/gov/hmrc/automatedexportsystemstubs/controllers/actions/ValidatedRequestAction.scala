@@ -30,8 +30,8 @@ case class ValidatedRequest[A](request: Request[A]) extends WrappedRequest[A](re
 
 @Singleton
 class ValidatedRequestAction @Inject() (
-  val parser: BodyParsers.Default,
-  appConfig:  AppConfig
+  override val parser: BodyParsers.Default,
+  appConfig:           AppConfig
 )(implicit val executionContext: ExecutionContext)
     extends ActionRefiner[Request, ValidatedRequest]
     with ActionBuilder[ValidatedRequest, AnyContent] {
@@ -50,11 +50,23 @@ class ValidatedRequestAction @Inject() (
 
   override protected def refine[A](request: Request[A]): Future[Either[Result, ValidatedRequest[A]]] = Future.successful {
 
+    def isValidHttpDate(value: String): Boolean =
+      scala.util
+        .Try(
+          java.time.ZonedDateTime.parse(
+            value,
+            java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
+          )
+        )
+        .isSuccess
+
     val invalidHeaders = appConfig.requiredHeaders.filter { case (key, expectedValue) =>
       request.headers.get(key) match {
         case None =>
           true
-        case Some(actualValue) if expectedValue == "*" && actualValue.trim == "*" =>
+        case Some(actualValue)
+            if expectedValue == "*" && (actualValue.trim == "*" || actualValue.isEmpty
+              || (key.equals("date") && !isValidHttpDate(actualValue))) =>
           true
         case Some(actualValue) if expectedValue != "*" && actualValue != expectedValue =>
           true
@@ -64,7 +76,7 @@ class ValidatedRequestAction @Inject() (
     }
 
     if (invalidHeaders.nonEmpty) {
-      val errorMessage = s"Missing or invalid mandatory headers: ${invalidHeaders.keys.mkString(", ")}" // TODO: fix the error message
+      val errorMessage = s"Missing or invalid mandatory headers: ${invalidHeaders.keys.mkString(", ")}"
       Left(buildResponse(BadRequest(errorMessage), request))
     } else {
       Right(ValidatedRequest(request))

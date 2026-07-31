@@ -48,6 +48,39 @@ class ValidatedRequestActionSpec extends BaseSpec {
 
       status(result) shouldBe Status.BAD_REQUEST
     }
+    "BAD_REQUEST when expected header value is empty" in {
+      val mockAppConfig = mock[AppConfig]
+      when(mockAppConfig.requiredHeaders).thenReturn(
+        Map("x-required" -> "*")
+      )
+
+      val action = ValidatedRequestAction(mockParser, mockAppConfig)
+
+      val request = FakeRequest("GET", "/test")
+        .withHeaders("x-required" -> "")
+
+      val result =
+        action.invokeBlock(request, (_: ValidatedRequest[AnyContent]) => Future.successful(Results.Ok))
+
+      status(result) shouldBe Status.BAD_REQUEST
+    }
+
+    "BAD_REQUEST when date header value is not a date" in {
+      val mockAppConfig = mock[AppConfig]
+      when(mockAppConfig.requiredHeaders).thenReturn(
+        Map("date" -> "*")
+      )
+
+      val action = ValidatedRequestAction(mockParser, mockAppConfig)
+
+      val request = FakeRequest("GET", "/test")
+        .withHeaders("date" -> "some-date")
+
+      val result =
+        action.invokeBlock(request, (_: ValidatedRequest[AnyContent]) => Future.successful(Results.Ok))
+
+      status(result) shouldBe Status.BAD_REQUEST
+    }
 
     "BAD_REQUEST when wildcard header is missing" in {
       val mockAppConfig = mock[AppConfig]
@@ -70,7 +103,8 @@ class ValidatedRequestActionSpec extends BaseSpec {
       when(mockAppConfig.requiredHeaders).thenReturn(
         Map(
           "x-wild"  -> "*",
-          "x-exact" -> "expected"
+          "x-exact" -> "expected",
+          "date"    -> "Fri, 31 Jul 2026 10:30:00 GMT"
         )
       )
 

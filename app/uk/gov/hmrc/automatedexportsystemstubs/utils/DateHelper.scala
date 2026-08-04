@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.config
+package uk.gov.hmrc.automatedexportsystemstubs.utils
 
-import javax.inject.{Inject, Singleton}
-import play.api.Configuration
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
-@Singleton
-class AppConfig @Inject() (config: Configuration):
-
-  val appName:         String              = config.get[String]("appName")
-  val requiredHeaders: Map[String, String] = config.get[Map[String, String]]("mandatory-headers")
+object DateHelper:
+  def currentHttpDate: String =
+    DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now())

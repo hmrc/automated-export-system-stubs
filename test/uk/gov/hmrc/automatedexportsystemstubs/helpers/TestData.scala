@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.config
+package uk.gov.hmrc.automatedexportsystemstubs.helpers
 
-import javax.inject.{Inject, Singleton}
-import play.api.Configuration
+import play.api.mvc.Headers
 
-@Singleton
-class AppConfig @Inject() (config: Configuration):
-
-  val appName:         String              = config.get[String]("appName")
-  val requiredHeaders: Map[String, String] = config.get[Map[String, String]]("mandatory-headers")
+object TestData:
+  val validAuthHeaders: Headers = Headers(
+    "x-forwarded-host"  -> "10.12.0.4",
+    "x-correlation-id"  -> "some-correlation-id",
+    "x-conversation-id" -> "some-conversation-id",
+    "date"              -> "2024-06-01T12:00:00Z",
+    "content-type"      -> "application/xml",
+    "accept"            -> "application/xml",
+    "authorization"     -> "Bearer test-token",
+    "message-type"      -> "aesIE507Request"
+  )

@@ -14,13 +14,6 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.config
+package uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.request
 
-import javax.inject.{Inject, Singleton}
-import play.api.Configuration
-
-@Singleton
-class AppConfig @Inject() (config: Configuration):
-
-  val appName:         String              = config.get[String]("appName")
-  val requiredHeaders: Map[String, String] = config.get[Map[String, String]]("mandatory-headers")
+case class ValidatedRequest()

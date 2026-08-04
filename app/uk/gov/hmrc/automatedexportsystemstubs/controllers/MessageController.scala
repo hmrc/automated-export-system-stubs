@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.config
+package uk.gov.hmrc.automatedexportsystemstubs.controllers
+
+import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
+import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
 
 import javax.inject.{Inject, Singleton}
-import play.api.Configuration
 
-@Singleton
-class AppConfig @Inject() (config: Configuration):
+@Singleton()
+class MessageController @Inject() (
+  cc:              ControllerComponents,
+  validatedAction: ValidatedRequestAction
+) extends AbstractController(cc):
 
-  val appName:         String              = config.get[String]("appName")
-  val requiredHeaders: Map[String, String] = config.get[Map[String, String]]("mandatory-headers")
+  def message(): Action[AnyContent] = validatedAction { implicit request =>
+    validatedAction.successResponse(request)
+  }

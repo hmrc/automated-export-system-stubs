@@ -17,15 +17,27 @@
 package uk.gov.hmrc.automatedexportsystemstubs.helpers
 
 import play.api.mvc.Headers
+import play.api.test.FakeRequest
 
 object TestData:
   val validAuthHeaders: Headers = Headers(
     "x-forwarded-host"  -> "10.12.0.4",
     "x-correlation-id"  -> "some-correlation-id",
     "x-conversation-id" -> "some-conversation-id",
-    "date"              -> "2024-06-01T12:00:00Z",
+    "date"              -> "Sat, 01 Jun 2024 12:00:00 GMT",
     "content-type"      -> "application/xml",
     "accept"            -> "application/xml",
     "authorization"     -> "Bearer test-token",
     "message-type"      -> "aesIE507Request"
   )
+
+  def requestWithMrn(mrn: String) =
+    FakeRequest("POST", "/cds/aesIE507Request/v1")
+      .withHeaders(validAuthHeaders)
+      .withXmlBody(
+        <message>
+          <MRN>
+            {mrn}
+          </MRN>
+        </message>
+      )

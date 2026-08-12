@@ -83,6 +83,12 @@ class ValidatedRequestAction @Inject() (
     }
   }
 
+  def errorResponse(
+    result:  Result,
+    request: Request[?]
+  ): Result =
+    buildResponse(result, request)
+
   def successResponse(request: Request[?]): Result =
     buildResponse(NoContent, request)
 }

@@ -20,14 +20,18 @@ import org.mockito.Mockito.reset
 import org.scalatest.BeforeAndAfterEach
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
+import uk.gov.hmrc.http.client.{HttpClientV2, RequestBuilder}
 
 trait AllMocks extends MockitoSugar with BeforeAndAfterEach:
   me: org.scalatest.Suite =>
-  val mockAppConfig: AppConfig = mock[AppConfig]
-
-  abstract override protected def beforeEach(): Unit =
+  val mockAppConfig:                            AppConfig      = mock[AppConfig]
+  val mockHttpClient:                           HttpClientV2   = mock[HttpClientV2]
+  val mockRequestBuilder:                       RequestBuilder = mock[RequestBuilder]
+  abstract override protected def beforeEach(): Unit           =
     super.beforeEach()
 
     Seq[AnyRef](
-      mockAppConfig
+      mockAppConfig,
+      mockHttpClient,
+      mockRequestBuilder
     ).foreach(reset(_))

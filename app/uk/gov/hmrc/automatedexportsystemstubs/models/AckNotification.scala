@@ -14,18 +14,6 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.config
+package uk.gov.hmrc.automatedexportsystemstubs.models
 
-import play.api.inject.{Binding, Module as AppModule}
-import play.api.{Configuration, Environment}
-
-import java.time.Clock
-
-class Module extends AppModule:
-
-  override def bindings(
-    environment:   Environment,
-    configuration: Configuration
-  ): Seq[Binding[_]] =
-    bind[Clock].toInstance(Clock.systemDefaultZone) :: // inject if current time needs to be controlled in unit tests
-      Nil
+final case class AckNotification(eori: String, correlationId: String, mrn: String)

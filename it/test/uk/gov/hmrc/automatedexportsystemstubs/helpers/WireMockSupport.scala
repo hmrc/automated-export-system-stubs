@@ -17,7 +17,6 @@
 package uk.gov.hmrc.automatedexportsystemstubs.helpers
 
 import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 
@@ -32,7 +31,7 @@ trait WireMockSupport extends BeforeAndAfterAll with BeforeAndAfterEach {
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    WireMock.configureFor("localhost", mockServerPort)
+    com.github.tomakehurst.wiremock.client.WireMock.configureFor(mockServerHost, mockServerPort)
     mockServer.start()
   }
 
@@ -40,7 +39,7 @@ trait WireMockSupport extends BeforeAndAfterAll with BeforeAndAfterEach {
     super.beforeEach()
 
   override protected def afterEach(): Unit = {
-    WireMock.reset()
+    com.github.tomakehurst.wiremock.client.WireMock.reset()
     super.afterEach()
   }
 

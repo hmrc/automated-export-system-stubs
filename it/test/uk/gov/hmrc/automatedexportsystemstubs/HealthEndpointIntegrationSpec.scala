@@ -16,27 +16,25 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs
 
-import org.scalatest.concurrent.{IntegrationPatience, ScalaFutures}
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.play.guice.GuiceOneServerPerSuite
 import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
-import scala.concurrent.ExecutionContext.Implicits.global
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseISpec
+import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, StringContextOps}
-import uk.gov.hmrc.http.HttpReads.Implicits.readRaw
 
-class HealthEndpointIntegrationSpec extends AnyWordSpec with Matchers with ScalaFutures with IntegrationPatience with GuiceOneServerPerSuite:
+import scala.concurrent.ExecutionContext.Implicits.global
+
+class HealthEndpointIntegrationSpec extends BaseISpec:
 
   private val httpClient = app.injector.instanceOf[HttpClientV2]
-  private val baseUrl    = s"http://localhost:$port"
+  private val baseUrl    = s"http://localhost:5003"
 
   override def fakeApplication(): Application =
     GuiceApplicationBuilder()
       .build()
 
-  "service health endpoint" should:
+  "service health endpoint" - {
     "respond with 200 status" in:
       val response =
         httpClient
@@ -44,4 +42,5 @@ class HealthEndpointIntegrationSpec extends AnyWordSpec with Matchers with Scala
           .execute()
           .futureValue
 
-      response.status shouldBe 200
+      response.status shouldBe OK
+  }

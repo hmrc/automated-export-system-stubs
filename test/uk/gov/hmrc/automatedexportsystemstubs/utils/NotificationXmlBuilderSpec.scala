@@ -19,14 +19,15 @@ package uk.gov.hmrc.automatedexportsystemstubs.utils
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
 import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
 
+import scala.xml.{Elem, XML}
+
 class NotificationXmlBuilderSpec extends BaseSpec {
 
   "parseIncomingAckXml" - {
 
     "successfully parse valid XML and extract MRN and EORI" in {
       val correlationId = "test-correlation-123"
-      val xmlPayload    =
-        """<?xml version="1.0" encoding="UTF-8"?>
+      val xmlPayload: Elem = XML.loadString("""<?xml version="1.0" encoding="UTF-8"?>
             |<AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
             |  <Header>
             |    <messageSender>GB123456789000</messageSender>
@@ -34,7 +35,7 @@ class NotificationXmlBuilderSpec extends BaseSpec {
             |  <Body>
             |    <MRN>26GB123456789ABCDE1</MRN>
             |  </Body>
-            |</AESDigitalNotification>""".stripMargin
+            |</AESDigitalNotification>""".stripMargin)
 
       val result = NotificationXmlBuilder.parseIncomingAckXml(correlationId, xmlPayload)
 
@@ -45,15 +46,14 @@ class NotificationXmlBuilderSpec extends BaseSpec {
 
     "throw exception when MRN is missing" in {
       val correlationId = "test-correlation-123"
-      val xmlPayload    =
-        """<?xml version="1.0" encoding="UTF-8"?>
+      val xmlPayload: Elem = XML.loadString("""<?xml version="1.0" encoding="UTF-8"?>
             |<AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
             |  <Header>
             |    <messageSender>GB123456789000</messageSender>
             |  </Header>
             |  <Body>
             |  </Body>
-            |</AESDigitalNotification>""".stripMargin
+            |</AESDigitalNotification>""".stripMargin)
 
       val exception = intercept[RuntimeException] {
         NotificationXmlBuilder.parseIncomingAckXml(correlationId, xmlPayload)
@@ -64,15 +64,14 @@ class NotificationXmlBuilderSpec extends BaseSpec {
 
     "throw exception when EORI (messageSender) is missing" in {
       val correlationId = "test-correlation-123"
-      val xmlPayload    =
-        """<?xml version="1.0" encoding="UTF-8"?>
+      val xmlPayload: Elem = XML.loadString("""<?xml version="1.0" encoding="UTF-8"?>
             |<AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
             |  <Header>
             |  </Header>
             |  <Body>
             |    <MRN>26GB123456789ABCDE1</MRN>
             |  </Body>
-            |</AESDigitalNotification>""".stripMargin
+            |</AESDigitalNotification>""".stripMargin)
 
       val exception = intercept[RuntimeException] {
         NotificationXmlBuilder.parseIncomingAckXml(correlationId, xmlPayload)
@@ -81,21 +80,9 @@ class NotificationXmlBuilderSpec extends BaseSpec {
       exception.getMessage should include("Missing required fields: MRN, EORI")
     }
 
-    "throw exception for invalid XML" in {
-      val correlationId = "test-correlation-123"
-      val invalidXml    = "<invalid>xml"
-
-      val exception = intercept[RuntimeException] {
-        NotificationXmlBuilder.parseIncomingAckXml(correlationId, invalidXml)
-      }
-
-      exception.getMessage should include("Failed to parse XML")
-    }
-
     "find MRN and EORI at any depth in XML" in {
       val correlationId = "test-correlation-123"
-      val xmlPayload    =
-        """<?xml version="1.0" encoding="UTF-8"?>
+      val xmlPayload: Elem = XML.loadString("""<?xml version="1.0" encoding="UTF-8"?>
             |<AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
             |  <Wrapper>
             |    <Header>
@@ -107,7 +94,7 @@ class NotificationXmlBuilderSpec extends BaseSpec {
             |      </Body>
             |    </Data>
             |  </Wrapper>
-            |</AESDigitalNotification>""".stripMargin
+            |</AESDigitalNotification>""".stripMargin)
 
       val result = NotificationXmlBuilder.parseIncomingAckXml(correlationId, xmlPayload)
 

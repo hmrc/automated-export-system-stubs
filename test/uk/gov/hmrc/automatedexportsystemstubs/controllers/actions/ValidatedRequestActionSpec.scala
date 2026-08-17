@@ -34,8 +34,6 @@ class ValidatedRequestActionSpec extends BaseSpec {
     val cc          = stubControllerComponents()
     val bodyParsers = new BodyParsers.Default(cc.parsers)
 
-  // private val mockParser: BodyParsers.Default = mock[BodyParsers.Default]
-
   "ValidatedRequestAction wildcard matching" - {
 
     "BAD_REQUEST when expected header value is '*'" in new Setup {

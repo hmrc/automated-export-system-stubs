@@ -55,7 +55,7 @@ class ValidatedRequestAction @Inject() (
         request.headers.get(key) match {
           case None                                 => true
           case Some(actual) if expectedValue == "*" =>
-            actual.trim.isEmpty || (key.equalsIgnoreCase("date") && !isValidHttpDate(actual))
+            actual.trim.isEmpty || actual.trim == "*" || (key.equalsIgnoreCase("date") && !isValidHttpDate(actual))
           case Some(actual) =>
             actual != expectedValue
         }

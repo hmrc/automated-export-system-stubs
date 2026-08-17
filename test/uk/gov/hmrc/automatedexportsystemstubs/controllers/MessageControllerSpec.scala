@@ -24,6 +24,7 @@ import org.mockito.ArgumentMatchers.*
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, TestData}
 import org.mockito.Mockito.when
+import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import scala.concurrent.Future
@@ -36,7 +37,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
   trait Setup:
     val requiredHeaders = Map("some-header" -> "header-val", "another-header" -> "another")
     when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
-    when(mockNotificationService.sendNotification(any[String], any[String])(any[HeaderCarrier]))
+    when(mockNotificationService.sendNotification(any[AckNotification], any[String])(any[HeaderCarrier]))
       .thenReturn(Future.successful(mock[HttpResponse]))
     private val cc             = stubControllerComponents()
     private val bodyParsers    = new BodyParsers.Default(cc.parsers)
@@ -71,7 +72,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
     )
     when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
     val validatedRequestAction = ValidatedRequestAction(mock[BodyParsers.Default], mockAppConfig)
-    when(mockNotificationService.sendNotification(any[String], any[String])(any[HeaderCarrier]))
+    when(mockNotificationService.sendNotification(any[AckNotification], any[String])(any[HeaderCarrier]))
       .thenReturn(Future.successful(mock[HttpResponse]))
     val controller = new MessageController(Helpers.stubControllerComponents(), mockNotificationService, validatedRequestAction)
 

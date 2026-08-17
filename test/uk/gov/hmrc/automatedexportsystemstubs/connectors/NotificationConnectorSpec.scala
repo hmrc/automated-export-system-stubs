@@ -20,6 +20,7 @@ import org.mockito.ArgumentMatchers.{any, eq as mEq}
 import org.mockito.Mockito.{verify, when}
 import play.api.http.Status
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
+import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
 import uk.gov.hmrc.http.{Authorization, HeaderCarrier, HttpResponse, StringContextOps}
 
 import java.net.URL
@@ -47,17 +48,7 @@ class NotificationConnectorSpec extends BaseSpec:
           otherHeaders = Seq("x-correlation-id" -> "correlationId")
         )
       when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
-      val validXmlPayload =
-        """<?xml version="1.0" encoding="UTF-8"?>
-            |<AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
-            |  <Header>
-            |    <messageSender>GB123456789000</messageSender>
-            |  </Header>
-            |  <Body>
-            |    <MRN>26GB123456789ABCDE1</MRN>
-            |  </Body>
-            |</AESDigitalNotification>""".stripMargin
-
+      val notification = AckNotification("GB123456789000", "some-correlationId", "26GB123456789ABCDE1")
       when(mockHttpClient.post(any())(any())) thenReturn mockRequestBuilder
       when(mockRequestBuilder.withBody(any[String])(any(), any(), any()))
         .thenReturn(mockRequestBuilder)
@@ -66,7 +57,7 @@ class NotificationConnectorSpec extends BaseSpec:
       when(mockRequestBuilder.execute(any(), any()))
         .thenReturn(Future.successful(HttpResponse(204, "")))
 
-      val result = connector.sendNotification(validXmlPayload, correlationId).futureValue
+      val result = connector.sendNotification(notification, correlationId).futureValue
       result.status shouldBe NO_CONTENT
 
       verify(mockHttpClient)
@@ -74,48 +65,6 @@ class NotificationConnectorSpec extends BaseSpec:
     }
 
   }
-
-  "throw exception when XML payload is invalid" in new Setup {
-    implicit val hc: HeaderCarrier =
-      HeaderCarrier(
-        authorization = Some(Authorization("auth-token")),
-        otherHeaders = Seq("x-correlation-id" -> "correlationId")
-      )
-    when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
-    when(mockHttpClient.post(any())(any())) thenReturn mockRequestBuilder
-
-    val invalidXmlPayload = "<invalid>xml"
-
-    val result = connector.sendNotification(invalidXmlPayload, correlationId)
-
-    result.failed.futureValue          shouldBe a[RuntimeException]
-    result.failed.futureValue.getMessage should include("Failed to parse XML")
-  }
-
-  "throw exception when MRN or EORI is missing from payload" in new Setup {
-    implicit val hc: HeaderCarrier =
-      HeaderCarrier(
-        authorization = Some(Authorization("auth-token")),
-        otherHeaders = Seq("x-correlation-id" -> "correlationId")
-      )
-    when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
-    when(mockHttpClient.post(any())(any())) thenReturn mockRequestBuilder
-
-    val incompleteXmlPayload =
-      """<?xml version="1.0" encoding="UTF-8"?>
-            |<AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
-            |  <Header>
-            |  </Header>
-            |  <Body>
-            |  </Body>
-            |</AESDigitalNotification>""".stripMargin
-
-    val result = connector.sendNotification(incompleteXmlPayload, correlationId)
-
-    result.failed.futureValue          shouldBe a[RuntimeException]
-    result.failed.futureValue.getMessage should include("Missing required fields")
-  }
-
   "handle HTTP errors from downstream service" in new Setup {
     implicit val hc: HeaderCarrier =
       HeaderCarrier(
@@ -123,17 +72,8 @@ class NotificationConnectorSpec extends BaseSpec:
         otherHeaders = Seq("x-correlation-id" -> "correlationId")
       )
     when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
-    val validXmlPayload =
-      """<?xml version="1.0" encoding="UTF-8"?>
-            |<AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
-            |  <Header>
-            |    <messageSender>GB123456789000</messageSender>
-            |  </Header>
-            |  <Body>
-            |    <MRN>26GB123456789ABCDE1</MRN>
-            |  </Body>
-            |</AESDigitalNotification>""".stripMargin
 
+    val notification = AckNotification("GB123456789000", "some-correlationId", "26GB123456789ABCDE1")
     when(mockHttpClient.post(any())(any())) thenReturn mockRequestBuilder
     when(mockRequestBuilder.withBody(any[String])(any(), any(), any()))
       .thenReturn(mockRequestBuilder)
@@ -142,7 +82,7 @@ class NotificationConnectorSpec extends BaseSpec:
     when(mockRequestBuilder.execute(any(), any()))
       .thenReturn(Future.successful(HttpResponse(Status.INTERNAL_SERVER_ERROR, "Server Error")))
 
-    val result = connector.sendNotification(validXmlPayload, correlationId)
+    val result = connector.sendNotification(notification, correlationId)
 
     result.futureValue.status shouldBe Status.INTERNAL_SERVER_ERROR
   }

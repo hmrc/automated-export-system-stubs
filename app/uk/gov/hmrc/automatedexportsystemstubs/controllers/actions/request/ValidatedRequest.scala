@@ -16,4 +16,6 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.request
 
-case class ValidatedRequest()
+import play.api.mvc.{Request, WrappedRequest}
+
+case class ValidatedRequest[A](request: Request[A]) extends WrappedRequest[A](request)

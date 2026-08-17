@@ -19,17 +19,17 @@ package uk.gov.hmrc.automatedexportsystemstubs.models
 import scala.xml.Elem
 
 case class ErrorDetail(
-                        timestamp: String,
-                        correlationId: String,
-                        errorCode: String,
-                        errorMessage: String,
-                        source: String,
-                        sourceFaultDetail: SourceFaultDetail
-                      )
+  timestamp:         String,
+  correlationId:     String,
+  errorCode:         String,
+  errorMessage:      String,
+  source:            String,
+  sourceFaultDetail: SourceFaultDetail
+)
 
 case class SourceFaultDetail(
-                              detail: Seq[String]
-                            )
+  detail: Seq[String]
+)
 
 object ErrorDetail {
 
@@ -42,10 +42,10 @@ object ErrorDetail {
       <source>{errorDetail.source}</source>
       <sourceFaultDetail>
         {
-        errorDetail.sourceFaultDetail.detail.map { detail =>
-          <detail>{detail}</detail>
-        }
-        }
+      errorDetail.sourceFaultDetail.detail.map { detail =>
+        <detail>{detail}</detail>
+      }
+    }
       </sourceFaultDetail>
     </errorDetail>
 }

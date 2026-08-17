@@ -20,9 +20,13 @@ import play.api.http.Status
 import play.api.mvc.BodyParsers
 import play.api.test.Helpers.*
 import play.api.test.Helpers
+import org.mockito.ArgumentMatchers.*
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, TestData}
 import org.mockito.Mockito.when
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+
+import scala.concurrent.Future
 
 class MessageControllerSpec extends BaseSpec with AllMocks:
 
@@ -32,8 +36,13 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
   trait Setup:
     val requiredHeaders = Map("some-header" -> "header-val", "another-header" -> "another")
     when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
-    val validatedRequestAction = ValidatedRequestAction(mock[BodyParsers.Default], mockAppConfig)
-    val controller             = new MessageController(Helpers.stubControllerComponents(), validatedRequestAction)
+    when(mockNotificationService.sendNotification(any[String], any[String])(any[HeaderCarrier]))
+      .thenReturn(Future.successful(mock[HttpResponse]))
+    private val cc             = stubControllerComponents()
+    private val bodyParsers    = new BodyParsers.Default(cc.parsers)
+    val validatedRequestAction = ValidatedRequestAction(bodyParsers, mockAppConfig)
+
+    val controller = new MessageController(Helpers.stubControllerComponents(), mockNotificationService, validatedRequestAction)
 
   "POST /" - {
 
@@ -62,7 +71,9 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
     )
     when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
     val validatedRequestAction = ValidatedRequestAction(mock[BodyParsers.Default], mockAppConfig)
-    val controller             = new MessageController(Helpers.stubControllerComponents(), validatedRequestAction)
+    when(mockNotificationService.sendNotification(any[String], any[String])(any[HeaderCarrier]))
+      .thenReturn(Future.successful(mock[HttpResponse]))
+    val controller = new MessageController(Helpers.stubControllerComponents(), mockNotificationService, validatedRequestAction)
 
   "MRN error responses" - {
     "return correct XML error response when MRN ends in 000" in new MrnSetup:

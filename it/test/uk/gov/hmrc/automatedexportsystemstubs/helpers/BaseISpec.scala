@@ -28,10 +28,11 @@ import play.api.http.{Status, *}
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc.Results
 import play.api.test.*
-import uk.gov.hmrc.automatedexportsystemstubs.helpers.WireMockSupport
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, WireMockSupport}
 
 trait BaseISpec
     extends AnyFreeSpecLike
+    with AllMocks
     with BeforeAndAfterAll
     with GuiceOneAppPerSuite
     with Matchers
@@ -59,12 +60,10 @@ trait BaseISpec
     PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
 
   override lazy val app: Application =
-    new GuiceApplicationBuilder()
+    GuiceApplicationBuilder()
       .configure(
-        "microservice.services.aes-notifications.host"       -> "localhost",
-        "microservice.services.aes-notifications.port"       -> mockServerPort.toString,
-        "microservice.services.aes-notifications.auth-token" -> "auth-token",
-        "metrics.enabled"                                    -> "false"
+        "automated-export-system-notifications.base-url"     -> s"http://localhost${mockServerPort.toString}/notification",
+        "microservice.services.aes-notifications.auth-token" -> "auth-token"
       )
       .build()
 

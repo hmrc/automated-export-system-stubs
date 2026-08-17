@@ -9,7 +9,7 @@ object AppDependencies {
     "uk.gov.hmrc"       %% s"bootstrap-backend-$playVersion" % bootstrapVersion,
     "uk.gov.hmrc.mongo" %% s"hmrc-mongo-$playVersion"        % hmrcMongoVersion,
     "org.typelevel"     %% "cats-core"                       % "2.13.0",
-    "org.scala-lang.modules" %% "scala-xml"                  % "2.4.0"
+    "org.scala-lang.modules" %% "scala-xml"                  % "2.4.0",
     "joda-time" % "joda-time" % "2.14.3",
     "org.joda" % "joda-convert" % "3.0.1"
   )

@@ -22,23 +22,28 @@ import play.api.mvc.*
 import play.api.test.FakeRequest
 import play.api.test.Helpers.*
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
+import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.request.ValidatedRequest
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
 
 import scala.concurrent.Future
 
 class ValidatedRequestActionSpec extends BaseSpec {
 
-  private val mockParser: BodyParsers.Default = mock[BodyParsers.Default]
+  trait Setup:
+    when(mockAppConfig.notificationToken).thenReturn("test-token")
+    val cc          = stubControllerComponents()
+    val bodyParsers = new BodyParsers.Default(cc.parsers)
+
+  // private val mockParser: BodyParsers.Default = mock[BodyParsers.Default]
 
   "ValidatedRequestAction wildcard matching" - {
 
-    "BAD_REQUEST when expected header value is '*'" in {
-      val mockAppConfig = mock[AppConfig]
+    "BAD_REQUEST when expected header value is '*'" in new Setup {
       when(mockAppConfig.requiredHeaders).thenReturn(
         Map("x-required" -> "*")
       )
 
-      val action = ValidatedRequestAction(mockParser, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders("x-required" -> "*")
@@ -48,13 +53,13 @@ class ValidatedRequestActionSpec extends BaseSpec {
 
       status(result) shouldBe Status.BAD_REQUEST
     }
-    "BAD_REQUEST when expected header value is empty" in {
+    "BAD_REQUEST when expected header value is empty" in new Setup {
       val mockAppConfig = mock[AppConfig]
       when(mockAppConfig.requiredHeaders).thenReturn(
         Map("x-required" -> "*")
       )
 
-      val action = ValidatedRequestAction(mockParser, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders("x-required" -> "")
@@ -65,13 +70,13 @@ class ValidatedRequestActionSpec extends BaseSpec {
       status(result) shouldBe Status.BAD_REQUEST
     }
 
-    "BAD_REQUEST when date header value is not a date" in {
+    "BAD_REQUEST when date header value is not a date" in new Setup {
       val mockAppConfig = mock[AppConfig]
       when(mockAppConfig.requiredHeaders).thenReturn(
         Map("date" -> "*")
       )
 
-      val action = ValidatedRequestAction(mockParser, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders("date" -> "some-date")
@@ -82,13 +87,13 @@ class ValidatedRequestActionSpec extends BaseSpec {
       status(result) shouldBe Status.BAD_REQUEST
     }
 
-    "BAD_REQUEST when wildcard header is missing" in {
+    "BAD_REQUEST when wildcard header is missing" in new Setup {
       val mockAppConfig = mock[AppConfig]
       when(mockAppConfig.requiredHeaders).thenReturn(
         Map("x-required" -> "*")
       )
 
-      val action = ValidatedRequestAction(mockParser, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
 
       val request = FakeRequest("GET", "/test")
 
@@ -98,7 +103,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
       status(result) shouldBe Status.BAD_REQUEST
     }
 
-    "OK when all headers are present" in {
+    "OK when all headers are present" in new Setup {
       val mockAppConfig = mock[AppConfig]
       when(mockAppConfig.requiredHeaders).thenReturn(
         Map(
@@ -108,7 +113,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         )
       )
 
-      val action = ValidatedRequestAction(mockParser, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders(

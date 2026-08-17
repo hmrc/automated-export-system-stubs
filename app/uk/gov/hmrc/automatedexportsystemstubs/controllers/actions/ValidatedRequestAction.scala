@@ -17,16 +17,16 @@
 package uk.gov.hmrc.automatedexportsystemstubs.controllers.actions
 
 import play.api.http.HeaderNames
-import play.api.mvc.Results.{BadRequest, NoContent}
 import play.api.mvc.*
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
 
-import java.time.ZonedDateTime
+import java.time.{ZoneOffset, ZonedDateTime}
 import java.time.format.DateTimeFormatter
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.request.ValidatedRequest
 
-case class ValidatedRequest[A](request: Request[A]) extends WrappedRequest[A](request)
+import scala.util.Try
 
 @Singleton
 class ValidatedRequestAction @Inject() (
@@ -34,61 +34,43 @@ class ValidatedRequestAction @Inject() (
   appConfig:           AppConfig
 )(implicit val executionContext: ExecutionContext)
     extends ActionRefiner[Request, ValidatedRequest]
-    with ActionBuilder[ValidatedRequest, AnyContent] {
+    with ActionBuilder[ValidatedRequest, AnyContent]:
 
   private def currentHttpDate: String =
-    DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now())
+    DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now(ZoneOffset.UTC))
 
   private def buildResponse(result: Result, incomingRequest: Request[?]): Result = {
     val withDate = result.withHeaders(HeaderNames.DATE -> currentHttpDate)
-
-    incomingRequest.headers.get("x-correlation-id") match {
-      case Some(id) => withDate.withHeaders("x-correlation-id" -> id)
-      case None     => withDate
-    }
+    incomingRequest.headers
+      .get("x-correlation-id")
+      .fold(withDate)(id => withDate.withHeaders("x-correlation-id" -> id))
   }
 
-  override protected def refine[A](request: Request[A]): Future[Either[Result, ValidatedRequest[A]]] = Future.successful {
+  private def isValidHttpDate(value: String): Boolean =
+    Try(ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME)).isSuccess
 
-    def isValidHttpDate(value: String): Boolean =
-      scala.util
-        .Try(
-          java.time.ZonedDateTime.parse(
-            value,
-            java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME
-          )
-        )
-        .isSuccess
+  override protected def refine[A](request: Request[A]): Future[Either[Result, ValidatedRequest[A]]] =
+    Future.successful {
+      val invalidHeaders = appConfig.requiredHeaders.filter { case (key, expectedValue) =>
+        request.headers.get(key) match {
+          case None                                 => true
+          case Some(actual) if expectedValue == "*" =>
+            actual.trim.isEmpty || (key.equalsIgnoreCase("date") && !isValidHttpDate(actual))
+          case Some(actual) =>
+            actual != expectedValue
+        }
+      }
 
-    val invalidHeaders = appConfig.requiredHeaders.filter { case (key, expectedValue) =>
-      request.headers.get(key) match {
-        case None =>
-          true
-        case Some(actualValue)
-            if expectedValue == "*" && (actualValue.trim == "*" || actualValue.isEmpty
-              || (key.equals("date") && !isValidHttpDate(actualValue))) =>
-          true
-        case Some(actualValue) if expectedValue != "*" && actualValue != expectedValue =>
-          true
-        case _ =>
-          false
+      if (invalidHeaders.nonEmpty) {
+        val msg = s"Missing or invalid mandatory headers: ${invalidHeaders.keys.mkString(", ")}"
+        Left(buildResponse(Results.BadRequest(msg), request))
+      } else {
+        Right(ValidatedRequest(request))
       }
     }
 
-    if (invalidHeaders.nonEmpty) {
-      val errorMessage = s"Missing or invalid mandatory headers: ${invalidHeaders.keys.mkString(", ")}"
-      Left(buildResponse(BadRequest(errorMessage), request))
-    } else {
-      Right(ValidatedRequest(request))
-    }
-  }
-
-  def errorResponse(
-    result:  Result,
-    request: Request[?]
-  ): Result =
+  def errorResponse(result: Result, request: Request[?]): Result =
     buildResponse(result, request)
 
   def successResponse(request: Request[?]): Result =
-    buildResponse(NoContent, request)
-}
+    buildResponse(Results.NoContent, request)

@@ -14,14 +14,23 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.config
+package uk.gov.hmrc.automatedexportsystemstubs.services
+
+import uk.gov.hmrc.automatedexportsystemstubs.connectors.NotificationConnector
+import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import javax.inject.{Inject, Singleton}
-import play.api.Configuration
+import scala.concurrent.Future
 
 @Singleton
-class AppConfig @Inject() (config: Configuration):
+class NotificationService @Inject() (
+  notificationConnector: NotificationConnector
+) {
 
-  val appName:           String              = config.get[String]("appName")
-  val requiredHeaders:   Map[String, String] = config.get[Map[String, String]]("mandatory-headers")
-  val notificationToken: String              = config.get[String]("microservice.services.aes-notifications.bearer-token")
+  def sendNotification(
+    notification:  AckNotification,
+    correlationId: String
+  )(implicit hc: HeaderCarrier): Future[HttpResponse] =
+    notificationConnector.sendNotification(notification, correlationId: String)
+}

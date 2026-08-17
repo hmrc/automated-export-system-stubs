@@ -27,13 +27,14 @@ import scala.concurrent.Future
 
 class NotificationConnectorSpec extends BaseSpec:
   trait Setup:
-    val baseUrl = "http://localhost:9001/notification"
-    val token   = "test-bearer-token"
+    val baseUrl       = "http://localhost:9001/notification"
+    val token         = "test-bearer-token"
+    val correlationId = "some-correlationId"
 
     val connector: NotificationConnector =
       new NotificationConnector(
         http = mockHttpClient,
-        baseUrl = baseUrl,
+        notificationUrl = baseUrl,
         token = token
       )
 
@@ -65,33 +66,13 @@ class NotificationConnectorSpec extends BaseSpec:
       when(mockRequestBuilder.execute(any(), any()))
         .thenReturn(Future.successful(HttpResponse(204, "")))
 
-      val result = connector.sendNotification(validXmlPayload).futureValue
+      val result = connector.sendNotification(validXmlPayload, correlationId).futureValue
       result.status shouldBe NO_CONTENT
 
       verify(mockHttpClient)
         .post(mEq(url"http://localhost:9001/notification"))(any[HeaderCarrier])
     }
 
-  }
-
-  "throw exception when x-correlation-id header is missing" in new Setup {
-    val validXmlPayload =
-      """<?xml version="1.0" encoding="UTF-8"?>
-            |<AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
-            |  <Header>
-            |    <messageSender>GB123456789000</messageSender>
-            |  </Header>
-            |  <Body>
-            |    <MRN>26GB123456789ABCDE1</MRN>
-            |  </Body>
-            |</AESDigitalNotification>""".stripMargin
-
-    implicit val hc: HeaderCarrier = HeaderCarrier()
-
-    val result = connector.sendNotification(validXmlPayload)
-
-    result.failed.futureValue          shouldBe a[IllegalArgumentException]
-    result.failed.futureValue.getMessage should include("Missing required header: x-correlation-id")
   }
 
   "throw exception when XML payload is invalid" in new Setup {
@@ -105,7 +86,7 @@ class NotificationConnectorSpec extends BaseSpec:
 
     val invalidXmlPayload = "<invalid>xml"
 
-    val result = connector.sendNotification(invalidXmlPayload)
+    val result = connector.sendNotification(invalidXmlPayload, correlationId)
 
     result.failed.futureValue          shouldBe a[RuntimeException]
     result.failed.futureValue.getMessage should include("Failed to parse XML")
@@ -129,7 +110,7 @@ class NotificationConnectorSpec extends BaseSpec:
             |  </Body>
             |</AESDigitalNotification>""".stripMargin
 
-    val result = connector.sendNotification(incompleteXmlPayload)
+    val result = connector.sendNotification(incompleteXmlPayload, correlationId)
 
     result.failed.futureValue          shouldBe a[RuntimeException]
     result.failed.futureValue.getMessage should include("Missing required fields")
@@ -161,7 +142,7 @@ class NotificationConnectorSpec extends BaseSpec:
     when(mockRequestBuilder.execute(any(), any()))
       .thenReturn(Future.successful(HttpResponse(Status.INTERNAL_SERVER_ERROR, "Server Error")))
 
-    val result = connector.sendNotification(validXmlPayload)
+    val result = connector.sendNotification(validXmlPayload, correlationId)
 
     result.futureValue.status shouldBe Status.INTERNAL_SERVER_ERROR
   }

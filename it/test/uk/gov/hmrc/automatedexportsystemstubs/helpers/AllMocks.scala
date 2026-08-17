@@ -21,17 +21,15 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
 import uk.gov.hmrc.automatedexportsystemstubs.services.NotificationService
-import uk.gov.hmrc.automatedexportsystemstubs.connectors.NotificationConnector
 import uk.gov.hmrc.http.client.{HttpClientV2, RequestBuilder}
 
 trait AllMocks extends MockitoSugar with BeforeAndAfterEach:
   me: org.scalatest.Suite =>
-  val mockAppConfig:                            AppConfig             = mock[AppConfig]
-  val mockHttpClient:                           HttpClientV2          = mock[HttpClientV2]
-  val mockRequestBuilder:                       RequestBuilder        = mock[RequestBuilder]
-  val mockNotificationService:                  NotificationService   = mock[NotificationService]
-  val mockNotificationConnector:                NotificationConnector = mock[NotificationConnector]
-  abstract override protected def beforeEach(): Unit                  =
+  val mockAppConfig:                            AppConfig           = mock[AppConfig]
+  val mockHttpClient:                           HttpClientV2        = mock[HttpClientV2]
+  val mockRequestBuilder:                       RequestBuilder      = mock[RequestBuilder]
+  val mockNotificationService:                  NotificationService = mock[NotificationService]
+  abstract override protected def beforeEach(): Unit                =
     super.beforeEach()
 
     Seq[AnyRef](

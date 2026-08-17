@@ -34,20 +34,19 @@ class GuiceModule(
 
   override def configure(): Unit =
     bind(classOf[Clock]).toInstance(Clock.systemDefaultZone)
-    // bind(classOf[NotificationConnector]).to(classOf[NotificationConnector]).asEagerSingleton()
 
   @Provides
-  @Named("automated-export-system-notifications.baseUrl")
+  @Named("automated-export-system-notifications.base-url")
   @Singleton
   def notificationBaseUrlProvider(servicesConfig: ServicesConfig): String =
-    servicesConfig.baseUrl(
+    servicesConfig.getString(
       "microservice.services.aes-notifications.url"
     )
 
   @Provides
-  @Named("automated-export-system-notifications.auth-token")
+  @Named("automated-export-system-notifications.bearer-token")
   @Singleton
   def notificationAuthTokenProvider(servicesConfig: ServicesConfig): String =
-    servicesConfig.getString("microservice.services.aes-notifications.auth-token")
+    servicesConfig.getString("microservice.services.aes-notifications.bearer-token")
 
 }

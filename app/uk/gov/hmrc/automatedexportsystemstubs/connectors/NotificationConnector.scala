@@ -18,6 +18,7 @@ package uk.gov.hmrc.automatedexportsystemstubs.connectors
 import org.joda.time.DateTime
 import play.api.Logger
 import play.api.libs.ws.*
+import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
 import uk.gov.hmrc.automatedexportsystemstubs.utils.NotificationXmlBuilder
 import uk.gov.hmrc.http.HttpReads.Implicits
 import uk.gov.hmrc.http.HttpReads.Implicits.{readEitherOf, throwOnFailure}
@@ -29,36 +30,30 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class NotificationConnector @Inject() (
-  http:                                                                                   HttpClientV2,
-  @Named("automated-export-system-notifications") baseUrl:                                String,
-  @Named("microservice.services.automated-export-system-notifications.auth-token") token: String
+  http:                                                                     HttpClientV2,
+  @Named("automated-export-system-notifications.base-url") notificationUrl: String,
+  @Named("automated-export-system-notifications.bearer-token") token:       String
 )(implicit executionContext: ExecutionContext) {
 
   implicit def httpResponse: HttpReads[HttpResponse] = throwOnFailure(readEitherOf[HttpResponse](using Implicits.readRaw))
 
   implicit val logger: Logger = Logger(this.getClass.getName)
 
-  def sendNotification(requestBody: String)(implicit hc: HeaderCarrier): Future[HttpResponse] =
+  def sendNotification(notificationData: AckNotification, correlationId: String)(implicit hc: HeaderCarrier): Future[HttpResponse] =
     try {
-      val correlationId = hc
-        .headers(Seq("x-correlation-id"))
-        .headOption
-        .map(_._2)
-        .getOrElse(throw new IllegalArgumentException("Missing required header: x-correlation-id"))
-      val notificationData = NotificationXmlBuilder.parseIncomingAckXml(correlationId, requestBody)
-      val currentDateTime  = DateTime.now().toString("EEE, dd MMM yyyy HH:mm:ss z")
-      val responseXml      = NotificationXmlBuilder.buildAckResponseXml(
+      val currentDateTime = DateTime.now().toString("EEE, dd MMM yyyy HH:mm:ss z")
+      val responseXml     = NotificationXmlBuilder.buildAckResponseXml(
         notificationData,
         currentDateTime
       )
       val xmlPayload = NotificationXmlBuilder.xmlToString(responseXml)
 
       logger.info(
-        s"Sending notification to $baseUrl for recipient: ${notificationData.eori}, MRN: ${notificationData.mrn}, correlationId: $correlationId"
+        s"Sending notification to $notificationUrl for recipient: ${notificationData.eori}, MRN: ${notificationData.mrn}, correlationId: $correlationId"
       )
 
       http
-        .post(url"$baseUrl")
+        .post(url"$notificationUrl")
         .withBody(xmlPayload)
         .setHeader("Authorization" -> token)
         .setHeader("Content-Type" -> "application/xml")
@@ -69,7 +64,7 @@ class NotificationConnector @Inject() (
           response
         }
         .recover { case e: Exception =>
-          logger.error(s"Error sending notification: ${e.getMessage}", e)
+          logger.warn(s"Error sending notification: ${e.getMessage}", e)
           throw e
         }
     } catch {

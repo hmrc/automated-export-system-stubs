@@ -18,28 +18,25 @@ package uk.gov.hmrc.automatedexportsystemstubs.utils
 
 import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
 
-import scala.xml.XML
 import scala.xml._
+import play.api.{Logger, Logging}
+import scala.xml.Elem
 
-object NotificationXmlBuilder {
+object NotificationXmlBuilder extends Logging:
+
+  override val logger = Logger(this.getClass)
 
   case class NotificationData(messageRecipient: String, mrn: String)
 
-  def parseIncomingAckXml(correlationId: String, xmlString: String): AckNotification =
-    try {
-      val xml  = XML.loadString(xmlString)
-      val mrn  = (xml \\ "MRN").text
-      val eori = (xml \\ "messageSender").text
+  def parseIncomingAckXml(correlationId: String, xml: scala.xml.Elem): AckNotification = {
+    val mrn  = (xml \\ "MRN").text.trim
+    val eori = (xml \\ "messageSender").text.trim
 
-      if (mrn.isEmpty || eori.isEmpty) {
-        throw new IllegalArgumentException("Missing required fields: MRN, EORI")
-      }
+    if (mrn.isEmpty || eori.isEmpty)
+      throw new IllegalArgumentException("Missing required fields: MRN, EORI")
 
-      AckNotification(eori, correlationId, mrn)
-    } catch {
-      case e: Exception =>
-        throw new RuntimeException(s"Failed to parse XML: ${e.getMessage}", e)
-    }
+    AckNotification(eori, correlationId, mrn)
+  }
 
   def buildAckResponseXml(
     data:            AckNotification,
@@ -64,4 +61,3 @@ object NotificationXmlBuilder {
 
   def xmlToString(xml: Elem): String =
     xml.toString()
-}

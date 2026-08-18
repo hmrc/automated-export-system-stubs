@@ -21,10 +21,13 @@ import play.api.mvc.BodyParsers
 import play.api.test.Helpers.*
 import play.api.test.Helpers
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
-import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec}
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, TestData}
 import org.mockito.Mockito.when
 
 class MessageControllerSpec extends BaseSpec with AllMocks:
+
+  private def elementText(xml: scala.xml.Elem, name: String): String =
+    (xml \\ name).text
 
   trait Setup:
     val requiredHeaders = Map("some-header" -> "header-val", "another-header" -> "another")
@@ -44,4 +47,85 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       val result             = controller.message()(requestWithHeaders)
       status(result) shouldBe Status.BAD_REQUEST
 
+  }
+
+  trait MrnSetup:
+    val requiredHeaders = Map(
+      "x-forwarded-host"  -> "*",
+      "x-correlation-id"  -> "*",
+      "x-conversation-id" -> "*",
+      "date"              -> "*",
+      "authorization"     -> "*",
+      "content-type"      -> "application/xml",
+      "accept"            -> "application/xml",
+      "message-type"      -> "aesIE507Request"
+    )
+    when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
+    val validatedRequestAction = ValidatedRequestAction(mock[BodyParsers.Default], mockAppConfig)
+    val controller             = new MessageController(Helpers.stubControllerComponents(), validatedRequestAction)
+
+  "MRN error responses" - {
+    "return correct XML error response when MRN ends in 000" in new MrnSetup:
+      val request = TestData.requestWithMrn("24AB1234567890A000")
+      val result  = controller.message()(request)
+      status(result) shouldBe Status.UNAUTHORIZED
+
+      header("x-correlation-id", result) shouldBe Some("some-correlation-id")
+      header("date", result)               should not be empty
+
+      val xml = scala.xml.XML.loadString(contentAsString(result))
+
+      elementText(xml, "errorCode")     shouldBe "401"
+      elementText(xml, "errorMessage")  shouldBe "UNAUTHORIZED"
+      elementText(xml, "source")        shouldBe "AES front end"
+      elementText(xml, "correlationId") shouldBe "some-correlation-id"
+      elementText(xml, "timestamp")       should not be empty
+
+    "return correct XML error response when MRN ends in 001" in new MrnSetup:
+      val request = TestData.requestWithMrn("24AB1234567890A001")
+      val result  = controller.message()(request)
+      status(result) shouldBe Status.NOT_FOUND
+
+      header("x-correlation-id", result) shouldBe Some("some-correlation-id")
+      header("date", result)               should not be empty
+
+      val xml = scala.xml.XML.loadString(contentAsString(result))
+
+      elementText(xml, "errorCode")     shouldBe "404"
+      elementText(xml, "errorMessage")  shouldBe "NOT_FOUND"
+      elementText(xml, "source")        shouldBe "AES front end"
+      elementText(xml, "correlationId") shouldBe "some-correlation-id"
+      elementText(xml, "timestamp")       should not be empty
+
+    "return correct XML error response when MRN ends in 002" in new MrnSetup:
+      val request = TestData.requestWithMrn("24AB1234567890A002")
+      val result  = controller.message()(request)
+      status(result) shouldBe Status.INTERNAL_SERVER_ERROR
+
+      header("x-correlation-id", result) shouldBe Some("some-correlation-id")
+      header("date", result)               should not be empty
+
+      val xml = scala.xml.XML.loadString(contentAsString(result))
+
+      elementText(xml, "errorCode")     shouldBe "500"
+      elementText(xml, "errorMessage")  shouldBe "INTERNAL_SERVER_ERROR"
+      elementText(xml, "source")        shouldBe "AES front end"
+      elementText(xml, "correlationId") shouldBe "some-correlation-id"
+      elementText(xml, "timestamp")       should not be empty
+
+    "return correct XML error response when MRN ends in 003" in new MrnSetup:
+      val request = TestData.requestWithMrn("24AB1234567890A003")
+      val result  = controller.message()(request)
+      status(result) shouldBe Status.BAD_REQUEST
+
+      header("x-correlation-id", result) shouldBe Some("some-correlation-id")
+      header("date", result)               should not be empty
+
+      val xml = scala.xml.XML.loadString(contentAsString(result))
+
+      elementText(xml, "errorCode")     shouldBe "400"
+      elementText(xml, "errorMessage")  shouldBe "VALIDATION_ERROR"
+      elementText(xml, "source")        shouldBe "AES front end"
+      elementText(xml, "correlationId") shouldBe "some-correlation-id"
+      elementText(xml, "timestamp")       should not be empty
   }

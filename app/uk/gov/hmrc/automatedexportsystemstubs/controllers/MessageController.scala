@@ -18,6 +18,7 @@ package uk.gov.hmrc.automatedexportsystemstubs.controllers
 
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
+import uk.gov.hmrc.automatedexportsystemstubs.utils.ErrorResponseHelper
 
 import javax.inject.{Inject, Singleton}
 
@@ -28,5 +29,59 @@ class MessageController @Inject() (
 ) extends AbstractController(cc):
 
   def message(): Action[AnyContent] = validatedAction { implicit request =>
-    validatedAction.successResponse(request)
+    val correlationId = request.headers.get("x-correlation-id").getOrElse("")
+    request.body.asXml match
+      case Some(xml) =>
+        val mrn = (xml \\ "MRN").headOption.map(_.text.trim)
+
+        mrn match
+          case Some(value) if value.endsWith("000") =>
+            validatedAction.errorResponse(
+              ErrorResponseHelper.createErrorResponse(
+                status = 401,
+                correlationId,
+                errorMessage = "UNAUTHORIZED",
+                detail = "Invalid or missing token"
+              ),
+              request
+            )
+
+          case Some(value) if value.endsWith("001") =>
+            validatedAction.errorResponse(
+              ErrorResponseHelper.createErrorResponse(
+                status = 404,
+                correlationId,
+                errorMessage = "NOT_FOUND",
+                detail = "EIS endpoint not found"
+              ),
+              request
+            )
+
+          case Some(value) if value.endsWith("002") =>
+            validatedAction.errorResponse(
+              ErrorResponseHelper.createErrorResponse(
+                status = 500,
+                correlationId,
+                errorMessage = "INTERNAL_SERVER_ERROR",
+                detail = "Server error"
+              ),
+              request
+            )
+
+          case Some(value) if value.endsWith("003") =>
+            validatedAction.errorResponse(
+              ErrorResponseHelper.createErrorResponse(
+                status = 400,
+                correlationId,
+                errorMessage = "VALIDATION_ERROR",
+                detail = "Validation error"
+              ),
+              request
+            )
+
+          case _ =>
+            validatedAction.successResponse(request)
+
+      case None =>
+        validatedAction.successResponse(request)
   }

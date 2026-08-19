@@ -65,8 +65,8 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
     val controller             = new MessageController(Helpers.stubControllerComponents(), validatedRequestAction)
 
   "MRN error responses" - {
-    "return correct XML error response when MRN ends in 000" in new MrnSetup:
-      val request = TestData.requestWithMrn("24AB1234567890A000")
+    "return correct XML error response when MRN ends in A0" in new MrnSetup:
+      val request = TestData.requestWithMrn("24AB1234567890A0A0")
       val result  = controller.message()(request)
       status(result) shouldBe Status.UNAUTHORIZED
 
@@ -81,8 +81,8 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       elementText(xml, "correlationId") shouldBe "some-correlation-id"
       elementText(xml, "timestamp")       should not be empty
 
-    "return correct XML error response when MRN ends in 001" in new MrnSetup:
-      val request = TestData.requestWithMrn("24AB1234567890A001")
+    "return correct XML error response when MRN ends in A1" in new MrnSetup:
+      val request = TestData.requestWithMrn("24AB1234567890A0A1")
       val result  = controller.message()(request)
       status(result) shouldBe Status.NOT_FOUND
 
@@ -97,8 +97,8 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       elementText(xml, "correlationId") shouldBe "some-correlation-id"
       elementText(xml, "timestamp")       should not be empty
 
-    "return correct XML error response when MRN ends in 002" in new MrnSetup:
-      val request = TestData.requestWithMrn("24AB1234567890A002")
+    "return correct XML error response when MRN ends in A2" in new MrnSetup:
+      val request = TestData.requestWithMrn("24AB1234567890A0A2")
       val result  = controller.message()(request)
       status(result) shouldBe Status.INTERNAL_SERVER_ERROR
 
@@ -113,8 +113,8 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       elementText(xml, "correlationId") shouldBe "some-correlation-id"
       elementText(xml, "timestamp")       should not be empty
 
-    "return correct XML error response when MRN ends in 003" in new MrnSetup:
-      val request = TestData.requestWithMrn("24AB1234567890A003")
+    "return correct XML error response when MRN ends in A3" in new MrnSetup:
+      val request = TestData.requestWithMrn("24AB1234567890A0A3")
       val result  = controller.message()(request)
       status(result) shouldBe Status.BAD_REQUEST
 

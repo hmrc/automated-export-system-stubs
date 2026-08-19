@@ -35,7 +35,7 @@ class MessageController @Inject() (
         val mrn = (xml \\ "MRN").headOption.map(_.text.trim)
 
         mrn match
-          case Some(value) if value.endsWith("000") =>
+          case Some(value) if value.endsWith("A0") =>
             validatedAction.errorResponse(
               ErrorResponseHelper.createErrorResponse(
                 status = 401,
@@ -46,7 +46,7 @@ class MessageController @Inject() (
               request
             )
 
-          case Some(value) if value.endsWith("001") =>
+          case Some(value) if value.endsWith("A1") =>
             validatedAction.errorResponse(
               ErrorResponseHelper.createErrorResponse(
                 status = 404,
@@ -57,7 +57,7 @@ class MessageController @Inject() (
               request
             )
 
-          case Some(value) if value.endsWith("002") =>
+          case Some(value) if value.endsWith("A2") =>
             validatedAction.errorResponse(
               ErrorResponseHelper.createErrorResponse(
                 status = 500,
@@ -68,7 +68,7 @@ class MessageController @Inject() (
               request
             )
 
-          case Some(value) if value.endsWith("003") =>
+          case Some(value) if value.endsWith("A3") =>
             validatedAction.errorResponse(
               ErrorResponseHelper.createErrorResponse(
                 status = 400,

@@ -22,11 +22,11 @@ import uk.gov.hmrc.automatedexportsystemstubs.models.{ErrorDetail, SourceFaultDe
 object ErrorResponseHelper:
 
   def createErrorResponse(
-                           status: Int,
-                           correlationId: String,
-                           errorMessage: String,
-                           detail: String
-                         ): Result =
+    status:        Int,
+    correlationId: String,
+    errorMessage:  String,
+    detail:        String
+  ): Result =
 
     val errorDetail = ErrorDetail(
       timestamp = DateHelper.currentIsoTimestamp,
@@ -39,6 +39,8 @@ object ErrorResponseHelper:
       )
     )
 
-    Results.Status(status)(
-      ErrorDetail.toXml(errorDetail)
-    ).as("application/xml")
+    Results
+      .Status(status)(
+        ErrorDetail.toXml(errorDetail)
+      )
+      .as("application/xml")

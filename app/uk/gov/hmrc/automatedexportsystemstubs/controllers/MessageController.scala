@@ -16,72 +16,106 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.controllers
 
+import play.api.{Logger, Logging}
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
-import uk.gov.hmrc.automatedexportsystemstubs.utils.ErrorResponseHelper
-
+import uk.gov.hmrc.automatedexportsystemstubs.services.NotificationService
+import uk.gov.hmrc.automatedexportsystemstubs.utils.{ErrorResponseHelper, NotificationXmlBuilder}
+import uk.gov.hmrc.http.HeaderCarrier
 import javax.inject.{Inject, Singleton}
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton()
 class MessageController @Inject() (
-  cc:              ControllerComponents,
-  validatedAction: ValidatedRequestAction
-) extends AbstractController(cc):
+  cc:                  ControllerComponents,
+  notificationService: NotificationService,
+  validatedAction:     ValidatedRequestAction
+)(implicit ec: ExecutionContext)
+    extends AbstractController(cc)
+    with Logging:
 
-  def message(): Action[AnyContent] = validatedAction { implicit request =>
+  override val logger = Logger(this.getClass)
+
+  def message(): Action[AnyContent] = validatedAction.async { implicit request =>
     val correlationId = request.headers.get("x-correlation-id").getOrElse("")
+    implicit val hc: HeaderCarrier =
+      HeaderCarrier(
+        extraHeaders = Seq("x-correlation-id" -> correlationId)
+      )
     request.body.asXml match
       case Some(xml) =>
         val mrn = (xml \\ "MRN").headOption.map(_.text.trim)
-
         mrn match
           case Some(value) if value.endsWith("000") =>
-            validatedAction.errorResponse(
-              ErrorResponseHelper.createErrorResponse(
-                status = 401,
-                correlationId,
-                errorMessage = "UNAUTHORIZED",
-                detail = "Invalid or missing token"
-              ),
-              request
+            Future.successful(
+              validatedAction.errorResponse(
+                ErrorResponseHelper.createErrorResponse(
+                  status = 401,
+                  correlationId,
+                  errorMessage = "UNAUTHORIZED",
+                  detail = "Invalid or missing token"
+                ),
+                request
+              )
             )
 
           case Some(value) if value.endsWith("001") =>
-            validatedAction.errorResponse(
-              ErrorResponseHelper.createErrorResponse(
-                status = 404,
-                correlationId,
-                errorMessage = "NOT_FOUND",
-                detail = "EIS endpoint not found"
-              ),
-              request
+            Future.successful(
+              validatedAction.errorResponse(
+                ErrorResponseHelper.createErrorResponse(
+                  status = 404,
+                  correlationId,
+                  errorMessage = "NOT_FOUND",
+                  detail = "EIS endpoint not found"
+                ),
+                request
+              )
             )
 
           case Some(value) if value.endsWith("002") =>
-            validatedAction.errorResponse(
-              ErrorResponseHelper.createErrorResponse(
-                status = 500,
-                correlationId,
-                errorMessage = "INTERNAL_SERVER_ERROR",
-                detail = "Server error"
-              ),
-              request
+            Future.successful(
+              validatedAction.errorResponse(
+                ErrorResponseHelper.createErrorResponse(
+                  status = 500,
+                  correlationId,
+                  errorMessage = "INTERNAL_SERVER_ERROR",
+                  detail = "Server error"
+                ),
+                request
+              )
             )
 
           case Some(value) if value.endsWith("003") =>
-            validatedAction.errorResponse(
-              ErrorResponseHelper.createErrorResponse(
-                status = 400,
-                correlationId,
-                errorMessage = "VALIDATION_ERROR",
-                detail = "Validation error"
-              ),
-              request
+            Future.successful(
+              validatedAction.errorResponse(
+                ErrorResponseHelper.createErrorResponse(
+                  status = 400,
+                  correlationId,
+                  errorMessage = "VALIDATION_ERROR",
+                  detail = "Validation error"
+                ),
+                request
+              )
             )
-
           case _ =>
-            validatedAction.successResponse(request)
+            request.body.asXml
+              .flatMap(_.headOption.collect { case e: scala.xml.Elem => e }) match {
 
+              case Some(elem) =>
+                val notification = NotificationXmlBuilder.parseIncomingAckXml(correlationId, elem)
+                notificationService
+                  .sendNotification(notification, correlationId)
+                  .map { response =>
+                    logger.info(s"Notification sent successfully: ${response.status}")
+                    validatedAction.successResponse(request)
+                  }
+                  .recover { case e =>
+                    logger.error("Failed to send notification", e)
+                    validatedAction.errorResponse(InternalServerError, request)
+                  }
+              case None =>
+                Future.successful(validatedAction.errorResponse(BadRequest("Expected XML body"), request))
+            }
       case None =>
-        validatedAction.successResponse(request)
+        Future.successful(validatedAction.successResponse(request))
   }

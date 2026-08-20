@@ -16,21 +16,23 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.helpers
 
-import com.github.tomakehurst.wiremock.client.WireMock
-import org.scalatest.{BeforeAndAfterAll, Inside, Inspectors, LoneElement, OptionValues}
+import com.github.tomakehurst.wiremock.client.WireMock.*
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.{Millis, Seconds, Span}
+import org.scalatest.*
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
-import play.api.http.{HeaderNames, HttpProtocol, HttpVerbs, MimeTypes, Status}
+import play.api.http.{Status, *}
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc.Results
-import play.api.test.{DefaultAwaitTimeout, EssentialActionCaller, FutureAwaits, ResultExtractors, RouteInvokers, Writeables}
-import uk.gov.hmrc.http.test.WireMockSupport
+import play.api.test.*
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, WireMockSupport}
 
 trait BaseISpec
     extends AnyFreeSpecLike
+    with AllMocks
     with BeforeAndAfterAll
     with GuiceOneAppPerSuite
     with Matchers
@@ -54,14 +56,25 @@ trait BaseISpec
     with WireMockSupport
     with Eventually:
 
-  override lazy val app: Application = new GuiceApplicationBuilder()
-    .configure(
-      "microservice.services.auth.host" -> "localhost",
-      "microservice.services.auth.port" -> wireMockPort,
-      "metrics.enabled"                 -> "false"
-    )
-    .build()
+  implicit override val patienceConfig: PatienceConfig =
+    PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
+
+  override lazy val app: Application =
+    GuiceApplicationBuilder()
+      .configure(
+        "automated-export-system-notifications.base-url"     -> s"http://localhost${mockServerPort.toString}/notification",
+        "microservice.services.aes-notifications.auth-token" -> "auth-token"
+      )
+      .build()
+
   override def beforeEach(): Unit = {
     super.beforeEach()
-    WireMock.reset()
+    stubFor(
+      post(urlEqualTo("/notification"))
+        .willReturn(
+          aResponse()
+            .withStatus(204)
+            .withBody("")
+        )
+    )
   }

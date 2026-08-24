@@ -20,31 +20,27 @@ import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
 
-trait WireMockSupport extends BeforeAndAfterAll with BeforeAndAfterEach {
-  me: Suite =>
+trait WireMockSupport extends BeforeAndAfterAll with BeforeAndAfterEach { me: Suite =>
 
   val mockServerHost: String = "localhost"
-  val mockServerPort: Int    = 1234
-  val mockServerUrl = s"http://$mockServerHost:$mockServerPort"
+  val mockServer = new WireMockServer(wireMockConfig().dynamicPort())
 
-  val mockServer = new WireMockServer(wireMockConfig().port(mockServerPort))
+  def mockServerPort: Int    = mockServer.port()
+  def mockServerUrl:  String = s"http://$mockServerHost:$mockServerPort"
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
-    com.github.tomakehurst.wiremock.client.WireMock.configureFor(mockServerHost, mockServerPort)
-    mockServer.start()
+    if (!mockServer.isRunning) mockServer.start()
+    com.github.tomakehurst.wiremock.client.WireMock.configureFor(mockServerHost, mockServer.port())
   }
 
-  override protected def beforeEach(): Unit =
+  override protected def beforeEach(): Unit = {
     super.beforeEach()
-
-  override protected def afterEach(): Unit = {
-    com.github.tomakehurst.wiremock.client.WireMock.reset()
-    super.afterEach()
+    mockServer.resetAll()
   }
 
   override protected def afterAll(): Unit = {
-    mockServer.stop()
+    if (mockServer.isRunning) mockServer.stop()
     super.afterAll()
   }
 }

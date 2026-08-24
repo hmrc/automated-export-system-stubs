@@ -18,12 +18,15 @@ package uk.gov.hmrc.automatedexportsystemstubs.controllers
 
 import play.api.{Logger, Logging}
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
-import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
+import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction //import uk.gov.hmrc.automatedexportsystemstubs.errors.Ie906Engine.MatchResult TODO: remove matchResult
+import uk.gov.hmrc.automatedexportsystemstubs.errors.{Ie906Engine, SyncErrorPolicy}
 import uk.gov.hmrc.automatedexportsystemstubs.services.NotificationService
-import uk.gov.hmrc.automatedexportsystemstubs.utils.{ErrorResponseHelper, NotificationXmlBuilder}
+import uk.gov.hmrc.automatedexportsystemstubs.utils.{NotificationXmlBuilder, SyncErrorResponseHelper}
 import uk.gov.hmrc.http.HeaderCarrier
+
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.xml.Elem
 
 @Singleton()
 class MessageController @Inject() (
@@ -42,80 +45,59 @@ class MessageController @Inject() (
       HeaderCarrier(
         extraHeaders = Seq("x-correlation-id" -> correlationId)
       )
-    request.body.asXml match
-      case Some(xml) =>
-        val mrn = (xml \\ "MRN").headOption.map(_.text.trim)
-        mrn match
-          case Some(value) if value.endsWith("000") =>
+    request.body.asXml.flatMap(_.headOption.collect { case e: Elem => e }) match
+      case None =>
+        logger.warn("Error: Invalid XML")
+        Future.successful(
+          validatedAction.errorResponse(BadRequest("Expected XML body"), request)
+        )
+
+      case Some(elem) =>
+        SyncErrorPolicy.syncErrorFor(elem) match
+          case Some(syncErr) =>
+            logger.warn(
+              s"Sync error - status: ${syncErr.status}," +
+                s"correlationId: $correlationId," +
+                s"message: ${syncErr.message}," +
+                s"detail: ${syncErr.detail}"
+            )
             Future.successful(
               validatedAction.errorResponse(
-                ErrorResponseHelper.createErrorResponse(
-                  status = 401,
-                  correlationId,
-                  errorMessage = "UNAUTHORIZED",
-                  detail = "Invalid or missing token"
+                SyncErrorResponseHelper.createErrorResponse(
+                  status = syncErr.status,
+                  correlationId = correlationId,
+                  errorMessage = syncErr.message,
+                  detail = syncErr.detail
                 ),
                 request
               )
             )
 
-          case Some(value) if value.endsWith("001") =>
-            Future.successful(
-              validatedAction.errorResponse(
-                ErrorResponseHelper.createErrorResponse(
-                  status = 404,
-                  correlationId,
-                  errorMessage = "NOT_FOUND",
-                  detail = "EIS endpoint not found"
-                ),
-                request
-              )
-            )
+          case None =>
+            val notification = NotificationXmlBuilder.parseIncomingAckXml(correlationId, elem)
+            Ie906Engine.allMatches(elem) match
+              case matches if matches.nonEmpty =>
+                val xmlErrors: List[scala.xml.Elem] = matches.map(Ie906Engine.toXmlError).toList
 
-          case Some(value) if value.endsWith("002") =>
-            Future.successful(
-              validatedAction.errorResponse(
-                ErrorResponseHelper.createErrorResponse(
-                  status = 500,
-                  correlationId,
-                  errorMessage = "INTERNAL_SERVER_ERROR",
-                  detail = "Server error"
-                ),
-                request
-              )
-            )
-
-          case Some(value) if value.endsWith("003") =>
-            Future.successful(
-              validatedAction.errorResponse(
-                ErrorResponseHelper.createErrorResponse(
-                  status = 400,
-                  correlationId,
-                  errorMessage = "VALIDATION_ERROR",
-                  detail = "Validation error"
-                ),
-                request
-              )
-            )
-          case _ =>
-            request.body.asXml
-              .flatMap(_.headOption.collect { case e: scala.xml.Elem => e }) match {
-
-              case Some(elem) =>
-                val notification = NotificationXmlBuilder.parseIncomingAckXml(correlationId, elem)
                 notificationService
-                  .sendNotification(notification, correlationId)
-                  .map { response =>
-                    logger.info(s"Notification sent successfully: ${response.status}")
-                    validatedAction.successResponse(request)
-                  }
+                  .sendIE906Notification(
+                    notification = notification,
+                    correlationId = correlationId,
+                    errors = xmlErrors
+                  )
+                  .map(_ => validatedAction.successResponse(request))
                   .recover { case e =>
-                    logger.error("Failed to send notification", e)
+                    logger.warn("Failed to send IE906 error notification", e)
                     validatedAction.errorResponse(InternalServerError, request)
                   }
-              case None =>
-                Future.successful(validatedAction.errorResponse(BadRequest("Expected XML body"), request))
-            }
-      case None =>
-        Future.successful(validatedAction.successResponse(request))
+
+              case _ =>
+                val notification = NotificationXmlBuilder.parseIncomingAckXml(correlationId, elem)
+                notificationService
+                  .sendAckNotification(notification, correlationId)
+                  .map(_ => validatedAction.successResponse(request))
+                  .recover { case e =>
+                    logger.error("Failed to send ACK notification", e)
+                    validatedAction.errorResponse(InternalServerError, request)
+                  }
   }

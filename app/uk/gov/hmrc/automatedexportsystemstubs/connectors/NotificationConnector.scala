@@ -27,49 +27,65 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOp
 
 import javax.inject.{Inject, Named, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.xml.Elem
 
 @Singleton
 class NotificationConnector @Inject() (
   http:                                                                     HttpClientV2,
   @Named("automated-export-system-notifications.base-url") notificationUrl: String,
   @Named("automated-export-system-notifications.bearer-token") token:       String
-)(implicit executionContext: ExecutionContext) {
+)(implicit executionContext: ExecutionContext):
 
-  implicit def httpResponse: HttpReads[HttpResponse] = throwOnFailure(readEitherOf[HttpResponse](using Implicits.readRaw))
+  implicit def httpResponse: HttpReads[HttpResponse] =
+    throwOnFailure(readEitherOf[HttpResponse](using Implicits.readRaw))
 
-  implicit val logger: Logger = Logger(this.getClass.getName)
+  private val logger: Logger = Logger(this.getClass.getName)
 
-  def sendNotification(notificationData: AckNotification, correlationId: String)(implicit hc: HeaderCarrier): Future[HttpResponse] =
-    try {
-      val currentDateTime = DateTime.now().toString("EEE, dd MMM yyyy HH:mm:ss z")
-      val responseXml     = NotificationXmlBuilder.buildAckResponseXml(
-        notificationData,
-        currentDateTime
-      )
-      val xmlPayload = NotificationXmlBuilder.xmlToString(responseXml)
-
-      logger.info(
-        s"Sending notification to $notificationUrl for recipient: ${notificationData.eori}, MRN: ${notificationData.mrn}, correlationId: $correlationId"
-      )
-
-      http
-        .post(url"$notificationUrl")
-        .withBody(xmlPayload)
-        .setHeader("Authorization" -> token)
-        .setHeader("Content-Type" -> "application/xml")
-        .setHeader("x-correlation-id" -> correlationId)
-        .execute
-        .map { response =>
-          logger.info(s"Notification sent successfully with status: ${response.status}")
-          response
-        }
-        .recover { case e: Exception =>
-          logger.warn(s"Error sending notification: ${e.getMessage}", e)
-          throw e
-        }
-    } catch {
-      case e: Exception =>
-        logger.error(s"Error processing notification: ${e.getMessage}", e)
-        Future.failed(e)
+  def sendNotification(
+    notificationData: AckNotification,
+    correlationId:    String
+  )(implicit hc: HeaderCarrier): Future[HttpResponse] =
+    send(notificationData, correlationId) { (data, now) =>
+      NotificationXmlBuilder.buildAckResponseXml(data, now)
     }
-}
+
+  def send906Notification(
+    notificationData: AckNotification,
+    correlationId:    String,
+    xmlError:         List[Elem]
+  )(implicit hc: HeaderCarrier): Future[HttpResponse] =
+    send(notificationData, correlationId) { (data, now) =>
+      NotificationXmlBuilder.buildIe906ResponseXml(data, now, xmlError)
+    }
+
+  private def send(
+    notificationData: AckNotification,
+    correlationId:    String
+  )(
+    buildXml: (AckNotification, String) => Elem
+  )(implicit hc: HeaderCarrier): Future[HttpResponse] = {
+    val currentDateTime = DateTime.now().toString("EEE, dd MMM yyyy HH:mm:ss z")
+    val xmlPayload      = NotificationXmlBuilder.xmlToString(buildXml(notificationData, currentDateTime))
+
+    logger.info(
+      s"Sending notification to $notificationUrl for recipient: ${notificationData.eori}, MRN: ${notificationData.mrn}, correlationId: $correlationId"
+    )
+
+    http
+      .post(url"$notificationUrl")
+      .setHeader(
+        "Authorization"    -> token,
+        "Content-Type"     -> "application/xml",
+        "x-correlation-id" -> correlationId
+      )
+      .withBody(xmlPayload)
+      .execute[HttpResponse]
+      .map { response =>
+        logger.info(s"Notification sent successfully with status: ${response.status}")
+        response
+      }
+      .recoverWith { case e: Exception =>
+        logger.warn(s"Error sending notification: ${e.getMessage}", e)
+        Future.failed(e)
+      }
+  }

@@ -70,9 +70,9 @@ object NotificationXmlBuilder extends Logging:
     buildEnvelope(
       data,
       currentDateTime,
-      messageType = "IE906",
+      messageType = "CD906C",
       bodyNodes = Seq(
-        <messageCode>IE906</messageCode>,
+        <messageCode>CC507C</messageCode>,
         <MRN>{data.mrn}</MRN>
       ) ++ xmlError
     )

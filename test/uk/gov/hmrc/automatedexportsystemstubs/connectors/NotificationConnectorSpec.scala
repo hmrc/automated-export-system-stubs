@@ -98,8 +98,8 @@ class NotificationConnectorSpec extends BaseSpec:
       verify(mockRequestBuilder).withBody(bodyCaptor.capture())(any(), any(), any())
 
       val sentXml = bodyCaptor.getValue
-      sentXml should include("<messageType>IE906</messageType>")
-      sentXml should include("<messageCode>IE906</messageCode>")
+      sentXml should include("<messageType>CD906C</messageType>")
+      sentXml should include("<messageCode>CC507C</messageCode>")
       sentXml should include("<XMLError>")
     }
 

@@ -122,7 +122,7 @@ class MessageControllerISpec extends BaseISpec:
           postRequestedFor(urlEqualTo("/automated-export-system-notifications/notification"))
             .withHeader("x-correlation-id", equalTo("corr-2"))
             .withHeader("Content-Type", containing("application/xml"))
-            .withRequestBody(containing("<messageType>IE906</messageType>"))
+            .withRequestBody(containing("<messageType>CD906C</messageType>"))
             .withRequestBody(containing("<XMLError>"))
         )
       }

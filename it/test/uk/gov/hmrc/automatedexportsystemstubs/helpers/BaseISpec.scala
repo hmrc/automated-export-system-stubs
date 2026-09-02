@@ -59,11 +59,19 @@ trait BaseISpec
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
 
+  if (!mockServer.isRunning) {
+    mockServer.start()
+    com.github.tomakehurst.wiremock.client.WireMock.configureFor(mockServerHost, mockServer.port())
+  }
+
   override lazy val app: Application =
     GuiceApplicationBuilder()
       .configure(
-        "automated-export-system-notifications.base-url"     -> s"http://localhost${mockServerPort.toString}/notification",
-        "microservice.services.aes-notifications.auth-token" -> "auth-token"
+        "microservice.services.aes-notifications.url" -> s"http://$mockServerHost:$mockServerPort/automated-export-system-notifications/notification",
+        "microservice.services.aes-notifications.auth-token" -> "auth-token",
+        "microservice.services.auth.host"                    -> mockServerHost,
+        "microservice.services.auth.port"                    -> mockServerPort,
+        "metrics.enabled"                                    -> "false"
       )
       .build()
 

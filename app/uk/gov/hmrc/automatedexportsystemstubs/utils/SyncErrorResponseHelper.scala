@@ -19,7 +19,7 @@ package uk.gov.hmrc.automatedexportsystemstubs.utils
 import play.api.mvc.{Result, Results}
 import uk.gov.hmrc.automatedexportsystemstubs.models.{ErrorDetail, SourceFaultDetail}
 
-object ErrorResponseHelper:
+object SyncErrorResponseHelper:
 
   def createErrorResponse(
     status:        Int,

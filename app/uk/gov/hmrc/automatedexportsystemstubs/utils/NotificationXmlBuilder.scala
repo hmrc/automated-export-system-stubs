@@ -18,7 +18,7 @@ package uk.gov.hmrc.automatedexportsystemstubs.utils
 
 import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
 
-import scala.xml._
+import scala.xml.*
 import play.api.{Logger, Logging}
 import scala.xml.Elem
 
@@ -26,38 +26,55 @@ object NotificationXmlBuilder extends Logging:
 
   override val logger = Logger(this.getClass)
 
-  case class NotificationData(messageRecipient: String, mrn: String)
-
-  def parseIncomingAckXml(correlationId: String, xml: scala.xml.Elem): AckNotification = {
+  def parseIncomingAckXml(correlationId: String, xml: scala.xml.Elem): AckNotification =
     val mrn  = (xml \\ "MRN").text.trim
     val eori = (xml \\ "messageSender").text.trim
-
-    if (mrn.isEmpty || eori.isEmpty)
-      throw new IllegalArgumentException("Missing required fields: MRN, EORI")
-
+    if mrn.isEmpty || eori.isEmpty then throw new IllegalArgumentException("Missing required fields: MRN, EORI")
     AckNotification(eori, correlationId, mrn)
-  }
 
-  def buildAckResponseXml(
+  private def buildEnvelope(
     data:            AckNotification,
-    currentDateTime: String
-  ): Elem = {
+    currentDateTime: String,
+    messageType:     String,
+    bodyNodes:       Seq[scala.xml.Node]
+  ): Elem =
     <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
       <Header>
         <messageSender>NECA.XI</messageSender>
         <messageRecipient>{data.eori}</messageRecipient>
         <preparationDateTime>{currentDateTime}</preparationDateTime>
         <messageIdentification>{data.correlationId}</messageIdentification>
-        <messageType>ACK</messageType>
+        <messageType>{messageType}</messageType>
         <correlationIdentifier>{data.correlationId}</correlationIdentifier>
       </Header>
-      <Body>
-        <messageCode>CC507C</messageCode>
-        <actionCode>1</actionCode>
-        <MRN>{data.mrn}</MRN>
-      </Body>
+      <Body>{bodyNodes}</Body>
     </AESDigitalNotification>
-  }
 
-  def xmlToString(xml: Elem): String =
-    xml.toString()
+  def buildAckResponseXml(data: AckNotification, currentDateTime: String): Elem =
+    buildEnvelope(
+      data,
+      currentDateTime,
+      messageType = "ACK",
+      bodyNodes = Seq(
+        <messageCode>CC507C</messageCode>,
+        <actionCode>1</actionCode>,
+        <MRN>{data.mrn}</MRN>
+      )
+    )
+
+  def buildIe906ResponseXml(
+    data:            AckNotification,
+    currentDateTime: String,
+    xmlError:        List[Elem]
+  ): Elem =
+    buildEnvelope(
+      data,
+      currentDateTime,
+      messageType = "CD906C",
+      bodyNodes = Seq(
+        <messageCode>CC507C</messageCode>,
+        <MRN>{data.mrn}</MRN>
+      ) ++ xmlError
+    )
+
+  def xmlToString(xml: Elem): String = xml.toString()

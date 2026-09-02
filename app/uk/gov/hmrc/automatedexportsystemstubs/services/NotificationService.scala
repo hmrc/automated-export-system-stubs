@@ -22,15 +22,22 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
+import scala.xml.Elem
 
 @Singleton
 class NotificationService @Inject() (
   notificationConnector: NotificationConnector
-) {
+):
 
-  def sendNotification(
+  def sendAckNotification(
     notification:  AckNotification,
     correlationId: String
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
     notificationConnector.sendNotification(notification, correlationId: String)
-}
+
+  def sendIE906Notification(
+    notification:  AckNotification,
+    correlationId: String,
+    errors:        List[Elem]
+  )(implicit hc: HeaderCarrier): Future[HttpResponse] =
+    notificationConnector.send906Notification(notification, correlationId, errors)

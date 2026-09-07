@@ -27,10 +27,10 @@ object Ie906Engine:
       rule.valueExtractor(xml).filter(rule.matches).map(v => MatchResult(rule.code, rule.elementPath, v))
     }
 
-  def toXmlError(m: MatchResult): Elem =
-    <XMLError>
+  def toFunctionalError(m: MatchResult): Elem =
+    <FunctionalError>
       <errorPointer>{m.pointer.trim}</errorPointer>
       <errorCode>{m.code}</errorCode>
-      <errorText>{"ERR02"}</errorText>
+      <errorReason>{"ERR02"}</errorReason>
       <originalAttributeValue>{m.originalValue}</originalAttributeValue>
-    </XMLError>
+    </FunctionalError>

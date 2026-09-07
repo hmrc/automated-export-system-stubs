@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors
+package uk.gov.hmrc.automatedexportsystemstubs.errors.IE906
+
+import IE906Rules.all
 
 import scala.xml.Elem
-import IE906Rules.all
 
 object Ie906Engine:
   final case class MatchResult(code: String, pointer: String, originalValue: String)

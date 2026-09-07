@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors
+package uk.gov.hmrc.automatedexportsystemstubs.errors.IE906
 
+import uk.gov.hmrc.automatedexportsystemstubs.errors.XmlRule
 import uk.gov.hmrc.automatedexportsystemstubs.utils.AsyncErrorResponseHelper.*
 
 object IE906Rules:

@@ -18,8 +18,9 @@ package uk.gov.hmrc.automatedexportsystemstubs.controllers
 
 import play.api.{Logger, Logging}
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
-import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction //import uk.gov.hmrc.automatedexportsystemstubs.errors.Ie906Engine.MatchResult TODO: remove matchResult
-import uk.gov.hmrc.automatedexportsystemstubs.errors.{Ie906Engine, SyncErrorPolicy}
+import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
+import uk.gov.hmrc.automatedexportsystemstubs.errors.IE906.Ie906Engine //import uk.gov.hmrc.automatedexportsystemstubs.errors.Ie906Engine.MatchResult TODO: remove matchResult
+import uk.gov.hmrc.automatedexportsystemstubs.errors.SyncErrorPolicy
 import uk.gov.hmrc.automatedexportsystemstubs.services.NotificationService
 import uk.gov.hmrc.automatedexportsystemstubs.utils.{NotificationXmlBuilder, SyncErrorResponseHelper}
 import uk.gov.hmrc.http.HeaderCarrier

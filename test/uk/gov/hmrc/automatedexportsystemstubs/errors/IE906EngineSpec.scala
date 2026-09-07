@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.errors
 
+import uk.gov.hmrc.automatedexportsystemstubs.errors.IE906.Ie906Engine
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
 
 import scala.xml.Elem

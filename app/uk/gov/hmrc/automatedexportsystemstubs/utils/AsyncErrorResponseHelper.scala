@@ -31,38 +31,38 @@ object AsyncErrorResponseHelper:
 
   def extract(path: String)(xml: Elem): Option[String] =
     val names = path.split('.').toList
-    val nodes = names.foldLeft(xml: NodeSeq)((acc, name) => acc \\ name)
+    val nodes = names.foldLeft(xml: NodeSeq)((acc, name) => acc \ name)
     textAt(nodes)
 
   val extractMrn: Elem => Option[String] =
-    extract("ExportOperation.MRN")
+    extract("Body.ExportOperation.MRN")
 
   val extractReferenceNumberUCRID: Elem => Option[String] =
-    extract("GoodsShipment.Consignment.ReferenceNumberUCRID")
+    extract("Body.GoodsShipment.Consignment.ReferenceNumberUCRID")
 
   val extractAuthorisationNumber: Elem => Option[String] =
-    extract("GoodsShipment.Consignment.LocationOfGoods.authorisationNumber")
+    extract("Body.GoodsShipment.Consignment.LocationOfGoods.authorisationNumber")
 
   val extractParentUcrId: Elem => Option[String] =
-    extract("GoodsShipment.Consignment.parentUCRID")
+    extract("Body.GoodsShipment.Consignment.parentUCRID")
 
   val extractTypeOfLocation: Elem => Option[String] =
-    extract("GoodsShipment.Consignment.LocationOfGoods.typeOfLocation")
+    extract("Body.GoodsShipment.Consignment.LocationOfGoods.typeOfLocation")
 
   val extractTransportEquipmentSequenceNumber: Elem => Option[String] =
-    extract("GoodsShipment.Consignment.TransportEquipment.sequenceNumber")
+    extract("Body.GoodsShipment.Consignment.TransportEquipment.sequenceNumber")
 
   val extractSealSequenceNumber: Elem => Option[String] =
-    extract("GoodsShipment.Consignment.TransportEquipment.Seal.sequenceNumber")
+    extract("Body.GoodsShipment.Consignment.TransportEquipment.Seal.sequenceNumber")
 
   val extractGoodsReferenceSequenceNumber: Elem => Option[String] =
-    extract("GoodsShipment.Consignment.TransportEquipment.GoodsReference.sequenceNumber")
+    extract("Body.GoodsShipment.Consignment.TransportEquipment.GoodsReference.sequenceNumber")
 
   val extractLocationOfGoodsSequenceNumber: Elem => Option[String] =
-    extract("GoodsShipment.Consignment.LocationOfGoods.sequenceNumber")
+    extract("Body.GoodsShipment.Consignment.LocationOfGoods.sequenceNumber")
 
   val extractTransportDocumentSequenceNumber: Elem => Option[String] =
-    extract("GoodsShipment.Consignment.TransportDocument.sequenceNumber")
+    extract("Body.GoodsShipment.Consignment.TransportDocument.sequenceNumber")
 
   val extractPackagingSequenceNumber: Elem => Option[String] =
-    extract("GoodsShipment.GoodsItem.Commodity.Packaging.sequenceNumber")
+    extract("Body.GoodsShipment.GoodsItem.Commodity.Packaging.sequenceNumber")

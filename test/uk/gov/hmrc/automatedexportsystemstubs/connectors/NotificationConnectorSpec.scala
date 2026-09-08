@@ -77,12 +77,12 @@ class NotificationConnectorSpec extends BaseSpec:
 
       val notification = AckNotification("GB123456789000", "some-correlationId", "26GB123456789ABCDEB0")
       val xmlErrors: List[scala.xml.Elem] =
-        List(<XMLError>
+        List(<FunctionalError>
           <errorPointer>/Body/MRN</errorPointer>
           <errorCode>90</errorCode>
           <errorText>ERR02</errorText>
           <originalAttributeValue>26GB123456789ABCDEB0</originalAttributeValue>
-        </XMLError>)
+        </FunctionalError>)
 
       when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
       when(mockRequestBuilder.withBody(any[String])(any(), any(), any())).thenReturn(mockRequestBuilder)
@@ -100,7 +100,7 @@ class NotificationConnectorSpec extends BaseSpec:
       val sentXml = bodyCaptor.getValue
       sentXml should include("<messageType>CD906C</messageType>")
       sentXml should include("<messageCode>CC507C</messageCode>")
-      sentXml should include("<XMLError>")
+      sentXml should include("<FunctionalError>")
     }
 
   }

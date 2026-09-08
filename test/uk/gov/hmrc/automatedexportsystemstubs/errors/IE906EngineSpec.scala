@@ -25,15 +25,15 @@ class IE906EngineSpec extends BaseSpec:
     "build one error node " in {
       val m = Ie906Engine.MatchResult("90", "/Body/MRN", "26GB123456789ABCDEB0")
 
-      val xml = Ie906Engine.toXmlError(m)
+      val xml = Ie906Engine.toFunctionalError(m)
 
       (xml \ "errorPointer").text           shouldBe "/Body/MRN"
       (xml \ "errorCode").text              shouldBe "90"
-      (xml \ "errorText").text              shouldBe "ERR02"
+      (xml \ "errorReason").text            shouldBe "ERR02"
       (xml \ "originalAttributeValue").text shouldBe "26GB123456789ABCDEB0"
     }
 
-    "IE906Engine.allMatches -> toXmlError" - {
+    "IE906Engine.allMatches -> toFunctionalError" - {
       "create multiple XMLError nodes when multiple rules match" in {
         val input: Elem =
           <AESDigitalNotification>
@@ -44,7 +44,7 @@ class IE906EngineSpec extends BaseSpec:
           </AESDigitalNotification>
 
         val errors: Seq[Elem] =
-          Ie906Engine.allMatches(input).map(Ie906Engine.toXmlError)
+          Ie906Engine.allMatches(input).map(Ie906Engine.toFunctionalError)
 
         errors.size shouldBe 2
 
@@ -61,7 +61,7 @@ class IE906EngineSpec extends BaseSpec:
             </Body>
           </AESDigitalNotification>
 
-        val errors = Ie906Engine.allMatches(input).map(Ie906Engine.toXmlError)
+        val errors = Ie906Engine.allMatches(input).map(Ie906Engine.toFunctionalError)
         errors shouldBe empty
       }
     }

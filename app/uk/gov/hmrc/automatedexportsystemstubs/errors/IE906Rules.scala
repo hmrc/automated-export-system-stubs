@@ -19,14 +19,42 @@ package uk.gov.hmrc.automatedexportsystemstubs.errors
 import uk.gov.hmrc.automatedexportsystemstubs.utils.AsyncErrorResponseHelper.*
 
 object IE906Rules:
-  val all: List[XmlRule] = List(
-    XmlRule("8", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("000")),
-    XmlRule("27", "GoodsShipment.Consignment.LocationOfGoods.authorisationNumber", extractAuthorisationNumber, equalsTo("1102")),
-    XmlRule("35", "GoodsShipment.Consignment.parentUCRID", extractParentUcrId, endsWith("AA")),
-    XmlRule("90", "ExportOperation.MRN", extractMrn, endsWith("B0")),
-    XmlRule("93", "ExportOperation.MRN", extractMrn, endsWith("B1")),
-    XmlRule("96", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("001")),
-    XmlRule("97", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("002")),
-    XmlRule("98", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("003")),
-    XmlRule("99", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("004"))
+  val all: List[FunctionalRule] = List(
+    FunctionalRule("8", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("000")),
+
+    FunctionalRule("12", "GoodsShipment.Consignment.LocationOfGoods.typeOfLocation", extractTypeOfLocation, equalsTo("E")),
+
+    FunctionalRule("13", "GoodsShipment.Consignment.LocationOfGoods.authorisationNumber", extractAuthorisationNumber, equalsTo("1104")),
+    FunctionalRule("14", "GoodsShipment.Consignment.LocationOfGoods.authorisationNumber", extractAuthorisationNumber, equalsTo("1103")),
+    FunctionalRule("15", "GoodsShipment.Consignment.LocationOfGoods.authorisationNumber", extractAuthorisationNumber, equalsTo("1100")),
+    FunctionalRule("26", "GoodsShipment.Consignment.LocationOfGoods.authorisationNumber", extractAuthorisationNumber, equalsTo("1101")),
+    FunctionalRule("27", "GoodsShipment.Consignment.LocationOfGoods.authorisationNumber", extractAuthorisationNumber, equalsTo("1102")),
+
+    FunctionalRule("35", "GoodsShipment.Consignment.parentUCRID", extractParentUcrId, endsWith("A1")),
+
+    FunctionalRule("50", "ExportOperation.MRN", extractMrn, endsWith("B3")),
+    FunctionalRule("51", "ExportOperation.MRN", extractMrn, endsWith("B2")),
+    FunctionalRule("52", "ExportOperation.MRN", extractMrn, endsWith("B1")),
+    FunctionalRule("90", "ExportOperation.MRN", extractMrn, endsWith("B0")),
+
+    FunctionalRule("92", "GoodsShipment.Consignment.TransportEquipment.sequenceNumber", extractTransportEquipmentSequenceNumber, equalsTo("40")),
+    FunctionalRule("92", "GoodsShipment.Consignment.TransportEquipment.Seal.sequenceNumber", extractSealSequenceNumber, equalsTo("40")),
+    FunctionalRule(
+      "92",
+      "GoodsShipment.Consignment.TransportEquipment.GoodsReference.sequenceNumber",
+      extractGoodsReferenceSequenceNumber,
+      equalsTo("40")
+    ),
+    FunctionalRule("92", "GoodsShipment.Consignment.LocationOfGoods.sequenceNumber", extractLocationOfGoodsSequenceNumber, equalsTo("40")),
+    FunctionalRule("92", "GoodsShipment.Consignment.TransportDocument.sequenceNumber", extractTransportDocumentSequenceNumber, equalsTo("40")),
+    FunctionalRule("92", "GoodsShipment.GoodsItem.Commodity.Packaging.sequenceNumber", extractPackagingSequenceNumber, equalsTo("40")),
+
+    FunctionalRule("93", "ExportOperation.MRN", extractMrn, endsWith("A4")),
+    FunctionalRule("94", "ExportOperation.MRN", extractMrn, endsWith("B4")),
+    FunctionalRule("95", "ExportOperation.MRN", extractMrn, endsWith("B5")),
+
+    FunctionalRule("96", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("001")),
+    FunctionalRule("97", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("002")),
+    FunctionalRule("98", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("003")),
+    FunctionalRule("99", "GoodsShipment.Consignment.ReferenceNumberUCRID", extractReferenceNumberUCRID, endsWith("004"))
   )

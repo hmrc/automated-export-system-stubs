@@ -123,7 +123,7 @@ class MessageControllerISpec extends BaseISpec:
             .withHeader("x-correlation-id", equalTo("corr-2"))
             .withHeader("Content-Type", containing("application/xml"))
             .withRequestBody(containing("<messageType>CD906C</messageType>"))
-            .withRequestBody(containing("<XMLError>"))
+            .withRequestBody(containing("<FunctionalError>"))
         )
       }
     }

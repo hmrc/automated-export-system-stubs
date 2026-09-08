@@ -77,7 +77,7 @@ class MessageController @Inject() (
             val notification = NotificationXmlBuilder.parseIncomingAckXml(correlationId, elem)
             Ie906Engine.allMatches(elem) match
               case matches if matches.nonEmpty =>
-                val xmlErrors: List[scala.xml.Elem] = matches.map(Ie906Engine.toXmlError).toList
+                val xmlErrors: List[scala.xml.Elem] = matches.map(Ie906Engine.toFunctionalError).toList
 
                 notificationService
                   .sendIE906Notification(

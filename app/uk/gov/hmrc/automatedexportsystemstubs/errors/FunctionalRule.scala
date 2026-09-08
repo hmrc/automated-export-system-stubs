@@ -18,7 +18,7 @@ package uk.gov.hmrc.automatedexportsystemstubs.errors
 
 import scala.xml.Elem
 
-final case class XmlRule(
+final case class FunctionalRule(
   code:           String,
   elementPath:    String,
   valueExtractor: Elem => Option[String],

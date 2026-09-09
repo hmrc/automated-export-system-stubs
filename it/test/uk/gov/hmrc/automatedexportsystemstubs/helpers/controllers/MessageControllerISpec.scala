@@ -31,7 +31,7 @@ class MessageControllerISpec extends BaseISpec:
     "accept"            -> "application/xml",
     "content-type"      -> "application/xml",
     "date"              -> "Fri, 31 Jul 2026 10:30:00 GMT",
-    "message-type"      -> "aesIE507Request",
+    "x-message-type"    -> "aesIE507Request",
     "x-forwarded-host"  -> "some-host"
   )
 

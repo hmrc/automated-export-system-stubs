@@ -16,53 +16,53 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.utils
 
-import scala.xml.{Elem, NodeSeq}
+import scala.xml.Elem
 
 object AsyncErrorResponseHelper:
-
-  def endsWith(suffix: String): String => Boolean =
-    _.trim.endsWith(suffix)
-
-  def equalsTo(v: String): String => Boolean =
-    _.trim == v
-
-  def textAt(ns: NodeSeq): Option[String] =
-    ns.headOption.map(_.text).map(_.trim).filter(_.nonEmpty)
-
-  def extract(path: String)(xml: Elem): Option[String] =
-    val names = path.split('.').toList
-    val nodes = names.foldLeft(xml: NodeSeq)((acc, name) => acc \ name)
-    textAt(nodes)
-
   val extractMrn: Elem => Option[String] =
-    extract("Body.ExportOperation.MRN")
+    XmlRequestHelper.extract("Body.ExportOperation.MRN")
 
   val extractReferenceNumberUCRID: Elem => Option[String] =
-    extract("Body.GoodsShipment.Consignment.ReferenceNumberUCRID")
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.ReferenceNumberUCRID")
 
   val extractAuthorisationNumber: Elem => Option[String] =
-    extract("Body.GoodsShipment.Consignment.LocationOfGoods.authorisationNumber")
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.LocationOfGoods.authorisationNumber")
 
   val extractParentUcrId: Elem => Option[String] =
-    extract("Body.GoodsShipment.Consignment.parentUCRID")
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.parentUCRID")
 
   val extractTypeOfLocation: Elem => Option[String] =
-    extract("Body.GoodsShipment.Consignment.LocationOfGoods.typeOfLocation")
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.LocationOfGoods.typeOfLocation")
 
   val extractTransportEquipmentSequenceNumber: Elem => Option[String] =
-    extract("Body.GoodsShipment.Consignment.TransportEquipment.sequenceNumber")
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.TransportEquipment.sequenceNumber")
 
   val extractSealSequenceNumber: Elem => Option[String] =
-    extract("Body.GoodsShipment.Consignment.TransportEquipment.Seal.sequenceNumber")
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.TransportEquipment.Seal.sequenceNumber")
 
   val extractGoodsReferenceSequenceNumber: Elem => Option[String] =
-    extract("Body.GoodsShipment.Consignment.TransportEquipment.GoodsReference.sequenceNumber")
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.TransportEquipment.GoodsReference.sequenceNumber")
 
   val extractLocationOfGoodsSequenceNumber: Elem => Option[String] =
-    extract("Body.GoodsShipment.Consignment.LocationOfGoods.sequenceNumber")
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.LocationOfGoods.sequenceNumber")
 
   val extractTransportDocumentSequenceNumber: Elem => Option[String] =
-    extract("Body.GoodsShipment.Consignment.TransportDocument.sequenceNumber")
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.TransportDocument.sequenceNumber")
 
   val extractPackagingSequenceNumber: Elem => Option[String] =
-    extract("Body.GoodsShipment.GoodsItem.Commodity.Packaging.sequenceNumber")
+    XmlRequestHelper.extract("Body.GoodsShipment.GoodsItem.Commodity.Packaging.sequenceNumber")
+
+  val extractCustomsOfficeOExitReferenceNumber: Elem => Option[String] =
+    XmlRequestHelper.extract("Body.CustomsOfficeOExitActual.referenceNumber")
+
+  val extractTransportEquipmentNumberOfSeals: Elem => Option[String] =
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.TransportEquipment.numberOfSeals")
+
+  val extractLocationOfGoodsAdditionalIdentifier: Elem => Option[String] =
+    XmlRequestHelper.extract("Body.GoodsShipment.Consignment.LocationOfGoods.additionalIdentifier")
+
+  val extractGoodsMeasureGrossMass: Elem => Option[String] =
+    XmlRequestHelper.extract("Body.GoodsItem.Commodity.GoodsMeasure.grossMass")
+
+  val extractGoodsMeasureNetMass: Elem => Option[String] =
+    XmlRequestHelper.extract("Body.GoodsItem.Commodity.GoodsMeasure.netMass")

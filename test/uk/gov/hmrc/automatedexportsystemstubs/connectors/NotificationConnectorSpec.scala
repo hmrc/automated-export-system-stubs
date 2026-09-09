@@ -104,6 +104,46 @@ class NotificationConnectorSpec extends BaseSpec:
     }
 
   }
+
+  "send917Notification" - {
+
+    "successfully send notification with valid request" in new Setup {
+      implicit val hc: HeaderCarrier =
+        HeaderCarrier(
+          authorization = Some(Authorization("auth-token")),
+          otherHeaders = Seq("x-correlation-id" -> "correlationId")
+        )
+
+      val notification = AckNotification("GB123456789000", "some-correlationId", "26GB123456789ABCDEB0")
+      val xmlErrors: List[scala.xml.Elem] =
+        List(<XmlError>
+          <errorPointer>/Some/path</errorPointer>
+          <errorCode>90</errorCode>
+          <errorReason>ERR02</errorReason>
+          <originalAttributeValue>26GB123456789ABCDEB0</originalAttributeValue>
+        </XmlError>)
+
+      when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
+      when(mockRequestBuilder.withBody(any[String])(any(), any(), any())).thenReturn(mockRequestBuilder)
+      when(mockRequestBuilder.setHeader(any[(String, String)])).thenReturn(mockRequestBuilder)
+      when(mockRequestBuilder.execute(any(), any())).thenReturn(Future.successful(HttpResponse(204, "")))
+
+      val result = connector.send917Notification(notification, correlationId, xmlErrors).futureValue
+      result.status shouldBe NO_CONTENT
+
+      verify(mockHttpClient).post(mEq(url"http://localhost:9001/notification"))(any[HeaderCarrier])
+
+      val bodyCaptor = org.mockito.ArgumentCaptor.forClass(classOf[String])
+      verify(mockRequestBuilder).withBody(bodyCaptor.capture())(any(), any(), any())
+
+      val sentXml = bodyCaptor.getValue
+      sentXml should include("<messageType>CD917C</messageType>")
+      sentXml should include("<messageCode>CC507C</messageCode>")
+      sentXml should include("<XmlError>")
+    }
+
+  }
+
   "handle HTTP errors from downstream service" in new Setup {
     implicit val hc: HeaderCarrier =
       HeaderCarrier(

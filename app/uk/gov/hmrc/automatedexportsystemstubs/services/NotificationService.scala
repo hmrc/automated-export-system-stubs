@@ -41,3 +41,10 @@ class NotificationService @Inject() (
     errors:        List[Elem]
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
     notificationConnector.send906Notification(notification, correlationId, errors)
+
+  def sendIE917Notification(
+    notification:  AckNotification,
+    correlationId: String,
+    errors:        List[Elem]
+  )(implicit hc: HeaderCarrier): Future[HttpResponse] =
+    notificationConnector.send917Notification(notification, correlationId, errors)

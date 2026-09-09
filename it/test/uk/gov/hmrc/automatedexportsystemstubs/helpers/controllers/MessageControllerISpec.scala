@@ -23,7 +23,7 @@ import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseISpec
 import scala.xml.Elem
 class MessageControllerISpec extends BaseISpec:
 
-  private val endpoint     = "/automated-export-system-stubs/cds/aesIE507Request/v1"
+  private val endpoint     = "/cds/aesIE507Request/v1"
   private val validHeaders = Seq(
     "Authorization"     -> "auth-token",
     "x-correlation-id"  -> "corr-2",
@@ -31,7 +31,7 @@ class MessageControllerISpec extends BaseISpec:
     "accept"            -> "application/xml",
     "content-type"      -> "application/xml",
     "date"              -> "Fri, 31 Jul 2026 10:30:00 GMT",
-    "message-type"      -> "aesIE507Request",
+    "x-message-type"    -> "aesIE507Request",
     "x-forwarded-host"  -> "some-host"
   )
 
@@ -124,6 +124,54 @@ class MessageControllerISpec extends BaseISpec:
             .withHeader("Content-Type", containing("application/xml"))
             .withRequestBody(containing("<messageType>CD906C</messageType>"))
             .withRequestBody(containing("<FunctionalError>"))
+        )
+      }
+    }
+
+    "returns 204 for async IE917 path (e.g. office of exit reference number ends 000 -> code 12 matched and forwarded)" in {
+      val body: Elem =
+        <AESDigitalNotification>
+          <Header>
+            <messageSender>GB123</messageSender>
+          </Header>
+          <Body>
+            <CustomsOfficeOExitActual>
+              <referenceNumber>some-reference-000</referenceNumber>
+            </CustomsOfficeOExitActual>
+            <ExportOperation>
+              <MRN>26GB123456789ABCDE00</MRN>
+            </ExportOperation>
+          </Body>
+        </AESDigitalNotification>
+
+      stubFor(
+        post(urlEqualTo("/automated-export-system-notifications/notification"))
+          .willReturn(aResponse().withStatus(204))
+      )
+
+      route(
+        app,
+        FakeRequest(POST, endpoint)
+          .withHeaders(validHeaders*)
+          .withXmlBody(body)
+      ).value
+      val result = route(
+        app,
+        FakeRequest(POST, endpoint)
+          .withHeaders(validHeaders*)
+          .withXmlBody(body)
+      ).value
+
+      status(result) shouldBe NO_CONTENT
+      eventually {
+        wmVerify(
+          moreThanOrExactly(1),
+          postRequestedFor(urlEqualTo("/automated-export-system-notifications/notification"))
+            .withHeader("x-correlation-id", equalTo("corr-2"))
+            .withHeader("Content-Type", containing("application/xml"))
+            .withRequestBody(containing("<messageType>CD917C</messageType>"))
+            .withRequestBody(containing("<XmlError>"))
+            .withRequestBody(containing("12"))
         )
       }
     }

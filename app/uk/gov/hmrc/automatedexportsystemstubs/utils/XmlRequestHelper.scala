@@ -18,7 +18,7 @@ package uk.gov.hmrc.automatedexportsystemstubs.utils
 
 import scala.xml.{Elem, NodeSeq}
 
-object AsyncRequestHelper:
+object XmlRequestHelper:
 
   def endsWith(suffix: String): String => Boolean =
     _.trim.endsWith(suffix)

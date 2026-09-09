@@ -16,7 +16,8 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.controllers.actions
 
-import play.api.http.HeaderNames
+import play.api.http.{HeaderNames, MimeTypes}
+import play.api.http.Status.BAD_REQUEST
 import play.api.mvc.*
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
 
@@ -25,6 +26,9 @@ import java.time.format.DateTimeFormatter
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.request.ValidatedRequest
+import uk.gov.hmrc.automatedexportsystemstubs.models.ErrorDetail.toXml
+import uk.gov.hmrc.automatedexportsystemstubs.models.{ErrorDetail, SourceFaultDetail}
+import uk.gov.hmrc.automatedexportsystemstubs.utils.DateHelper
 
 import scala.util.Try
 
@@ -40,10 +44,10 @@ class ValidatedRequestAction @Inject() (
     DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now(ZoneOffset.UTC))
 
   private def buildResponse(result: Result, incomingRequest: Request[?]): Result = {
-    val withDate = result.withHeaders(HeaderNames.DATE -> currentHttpDate)
+    val headers = result.withHeaders(HeaderNames.DATE -> currentHttpDate, HeaderNames.CONTENT_TYPE -> MimeTypes.XML)
     incomingRequest.headers
       .get("x-correlation-id")
-      .fold(withDate)(id => withDate.withHeaders("x-correlation-id" -> id))
+      .fold(headers)(id => headers.withHeaders("x-correlation-id" -> id))
   }
 
   private def isValidHttpDate(value: String): Boolean =
@@ -63,7 +67,23 @@ class ValidatedRequestAction @Inject() (
 
       if (invalidHeaders.nonEmpty) {
         val msg = s"Missing or invalid mandatory headers: ${invalidHeaders.keys.mkString(", ")}"
-        Left(buildResponse(Results.BadRequest(msg), request))
+
+        val errorDetail = ErrorDetail(
+          timestamp = DateHelper.currentIsoTimestamp,
+          correlationId = request.headers.get("x-correlation-id").getOrElse(""),
+          errorCode = BAD_REQUEST.toString,
+          errorMessage = msg,
+          source = "AES front end",
+          sourceFaultDetail = SourceFaultDetail(
+            detail = Seq(msg)
+          )
+        )
+        Left(
+          buildResponse(
+            Results.BadRequest(toXml(errorDetail).toString()).as("application/xml"),
+            request
+          )
+        )
       } else {
         Right(ValidatedRequest(request))
       }

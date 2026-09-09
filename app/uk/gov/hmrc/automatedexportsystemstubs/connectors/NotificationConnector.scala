@@ -61,10 +61,10 @@ class NotificationConnector @Inject() (
   def send917Notification(
     notificationData: AckNotification,
     correlationId:    String,
-    xmlError:         List[Elem]
+    xmlErrors:        List[Elem]
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
     send(notificationData, correlationId) { (data, now) =>
-      NotificationXmlBuilder.buildIE917ResponseXml(data, now, xmlError)
+      NotificationXmlBuilder.buildIE917ResponseXml(data, now, xmlErrors)
     }
 
   private def send(

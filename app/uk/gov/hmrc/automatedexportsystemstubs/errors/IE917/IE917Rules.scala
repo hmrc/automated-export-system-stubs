@@ -18,7 +18,7 @@ package uk.gov.hmrc.automatedexportsystemstubs.errors.IE917
 
 import uk.gov.hmrc.automatedexportsystemstubs.errors.IE917.XmlRule
 import uk.gov.hmrc.automatedexportsystemstubs.utils.AsyncErrorResponseHelper.*
-import uk.gov.hmrc.automatedexportsystemstubs.utils.AsyncRequestHelper.*
+import uk.gov.hmrc.automatedexportsystemstubs.utils.XmlRequestHelper.*
 
 object IE917Rules:
   val all: List[XmlRule] = List(

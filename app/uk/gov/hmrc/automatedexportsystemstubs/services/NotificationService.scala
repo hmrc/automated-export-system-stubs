@@ -47,4 +47,4 @@ class NotificationService @Inject() (
     correlationId: String,
     errors:        List[Elem]
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
-    notificationConnector.send906Notification(notification, correlationId, errors)
+    notificationConnector.send917Notification(notification, correlationId, errors)

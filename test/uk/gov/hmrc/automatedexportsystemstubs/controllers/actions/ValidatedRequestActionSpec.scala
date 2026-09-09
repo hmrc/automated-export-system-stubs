@@ -19,7 +19,7 @@ package uk.gov.hmrc.automatedexportsystemstubs.controllers.actions
 import org.mockito.Mockito.when
 import play.api.http.Status
 import play.api.mvc.*
-import play.api.test.FakeRequest
+import play.api.test.{FakeRequest, Helpers}
 import play.api.test.Helpers.*
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.request.ValidatedRequest
@@ -98,7 +98,9 @@ class ValidatedRequestActionSpec extends BaseSpec {
       val result =
         action.invokeBlock(request, (_: ValidatedRequest[AnyContent]) => Future.successful(Results.Ok))
 
-      status(result) shouldBe Status.BAD_REQUEST
+      status(result)                shouldBe Status.BAD_REQUEST
+      Helpers.contentAsString(result) should include("errorDetail")
+      Helpers.contentAsString(result) should include("<errorCode>400</errorCode>")
     }
 
     "OK when all headers are present" in new Setup {

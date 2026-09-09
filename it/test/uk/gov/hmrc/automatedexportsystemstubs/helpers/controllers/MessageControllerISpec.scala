@@ -23,7 +23,7 @@ import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseISpec
 import scala.xml.Elem
 class MessageControllerISpec extends BaseISpec:
 
-  private val endpoint     = "/automated-export-system-stubs/cds/aesIE507Request/v1"
+  private val endpoint     = "/cds/aesIE507Request/v1"
   private val validHeaders = Seq(
     "Authorization"     -> "auth-token",
     "x-correlation-id"  -> "corr-2",
@@ -128,15 +128,18 @@ class MessageControllerISpec extends BaseISpec:
       }
     }
 
-    "returns 204 for async IE917 path (e.g. DUCR ends B0 -> code 90 matched and forwarded)" in {
+    "returns 204 for async IE917 path (e.g. office of exit reference number ends 000 -> code 12 matched and forwarded)" in {
       val body: Elem =
         <AESDigitalNotification>
           <Header>
             <messageSender>GB123</messageSender>
           </Header>
           <Body>
+            <CustomsOfficeOExitActual>
+              <referenceNumber>some-reference-000</referenceNumber>
+            </CustomsOfficeOExitActual>
             <ExportOperation>
-              <MRN>26GB123456789ABCDEB0</MRN>
+              <MRN>26GB123456789ABCDE00</MRN>
             </ExportOperation>
           </Body>
         </AESDigitalNotification>
@@ -149,13 +152,13 @@ class MessageControllerISpec extends BaseISpec:
       route(
         app,
         FakeRequest(POST, endpoint)
-          .withHeaders(validHeaders *)
+          .withHeaders(validHeaders*)
           .withXmlBody(body)
       ).value
       val result = route(
         app,
         FakeRequest(POST, endpoint)
-          .withHeaders(validHeaders *)
+          .withHeaders(validHeaders*)
           .withXmlBody(body)
       ).value
 
@@ -166,8 +169,9 @@ class MessageControllerISpec extends BaseISpec:
           postRequestedFor(urlEqualTo("/automated-export-system-notifications/notification"))
             .withHeader("x-correlation-id", equalTo("corr-2"))
             .withHeader("Content-Type", containing("application/xml"))
-            .withRequestBody(containing("<messageType>CD906C</messageType>"))
-            .withRequestBody(containing("<FunctionalError>"))
+            .withRequestBody(containing("<messageType>CD917C</messageType>"))
+            .withRequestBody(containing("<XmlError>"))
+            .withRequestBody(containing("12"))
         )
       }
     }

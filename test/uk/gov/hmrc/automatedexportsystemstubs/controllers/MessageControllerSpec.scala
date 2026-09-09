@@ -67,10 +67,9 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       status(result) shouldBe Status.NO_CONTENT
 
     "return 400 when required headers are missing" in new Setup:
-      val requestWithHeaders = fakeRequest.withHeaders(("some-header", "header-value"))
+      val requestWithHeaders = fakeRequest.withHeaders(("some-header", "header-val"), ("another-header", "another"))
       val result             = controller.message()(requestWithHeaders)
       status(result) shouldBe Status.BAD_REQUEST
-
   }
 
   trait MrnSetup:
@@ -155,4 +154,3 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       elementText(xml, "correlationId") shouldBe "some-correlation-id"
       elementText(xml, "timestamp")       should not be empty
   }
-  

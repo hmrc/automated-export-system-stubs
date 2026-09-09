@@ -19,7 +19,8 @@ package uk.gov.hmrc.automatedexportsystemstubs.controllers
 import play.api.{Logger, Logging}
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
-import uk.gov.hmrc.automatedexportsystemstubs.errors.IE906.Ie906Engine //import uk.gov.hmrc.automatedexportsystemstubs.errors.Ie906Engine.MatchResult TODO: remove matchResult
+import uk.gov.hmrc.automatedexportsystemstubs.errors.IE906.Ie906Engine
+import uk.gov.hmrc.automatedexportsystemstubs.errors.IE917.IE917Engine
 import uk.gov.hmrc.automatedexportsystemstubs.errors.SyncErrorPolicy
 import uk.gov.hmrc.automatedexportsystemstubs.services.NotificationService
 import uk.gov.hmrc.automatedexportsystemstubs.utils.{NotificationXmlBuilder, SyncErrorResponseHelper}
@@ -76,29 +77,33 @@ class MessageController @Inject() (
 
           case None =>
             val notification = NotificationXmlBuilder.parseIncomingAckXml(correlationId, elem)
-            Ie906Engine.allMatches(elem) match
+            IE917Engine.allMatches(elem) match
               case matches if matches.nonEmpty =>
-                val xmlErrors: List[scala.xml.Elem] = matches.map(Ie906Engine.toFunctionalError).toList
-
+                val xmlErrors: List[scala.xml.Elem] = matches.map(IE917Engine.toXmlError).toList
                 notificationService
-                  .sendIE906Notification(
-                    notification = notification,
-                    correlationId = correlationId,
-                    errors = xmlErrors
-                  )
+                  .sendIE917Notification(notification = notification, correlationId = correlationId, errors = xmlErrors)
                   .map(_ => validatedAction.successResponse(request))
                   .recover { case e =>
-                    logger.warn("Failed to send IE906 error notification", e)
+                    logger.warn("Failed to send EI917 error notification", e)
                     validatedAction.errorResponse(InternalServerError, request)
                   }
-
               case _ =>
-                val notification = NotificationXmlBuilder.parseIncomingAckXml(correlationId, elem)
-                notificationService
-                  .sendAckNotification(notification, correlationId)
-                  .map(_ => validatedAction.successResponse(request))
-                  .recover { case e =>
-                    logger.error("Failed to send ACK notification", e)
-                    validatedAction.errorResponse(InternalServerError, request)
-                  }
+                Ie906Engine.allMatches(elem) match
+                  case matches if matches.nonEmpty =>
+                    val functionalErrors: List[scala.xml.Elem] = matches.map(Ie906Engine.toFunctionalError).toList
+                    notificationService
+                      .sendIE906Notification(notification = notification, correlationId = correlationId, errors = functionalErrors)
+                      .map(_ => validatedAction.successResponse(request))
+                      .recover { case e =>
+                        logger.warn("Failed to send IE906 error notification", e)
+                        validatedAction.errorResponse(InternalServerError, request)
+                      }
+                  case _ =>
+                    notificationService
+                      .sendAckNotification(notification, correlationId)
+                      .map(_ => validatedAction.successResponse(request))
+                      .recover { case e =>
+                        logger.error("Failed to send ACK notification", e)
+                        validatedAction.errorResponse(InternalServerError, request)
+                      }
   }

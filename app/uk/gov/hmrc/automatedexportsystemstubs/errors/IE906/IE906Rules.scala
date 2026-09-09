@@ -16,8 +16,8 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.errors.IE906
 
-import uk.gov.hmrc.automatedexportsystemstubs.errors.XmlRule
 import uk.gov.hmrc.automatedexportsystemstubs.utils.AsyncErrorResponseHelper.*
+import uk.gov.hmrc.automatedexportsystemstubs.utils.AsyncRequestHelper.*
 
 object IE906Rules:
   val all: List[FunctionalRule] = List(

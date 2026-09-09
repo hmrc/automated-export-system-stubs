@@ -14,13 +14,22 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors
+package uk.gov.hmrc.automatedexportsystemstubs.utils
 
-import scala.xml.Elem
+import scala.xml.{Elem, NodeSeq}
 
-final case class FunctionalRule(
-  code:           String,
-  elementPath:    String,
-  valueExtractor: Elem => Option[String],
-  matches:        String => Boolean
-)
+object AsyncRequestHelper:
+
+  def endsWith(suffix: String): String => Boolean =
+    _.trim.endsWith(suffix)
+
+  def equalsTo(v: String): String => Boolean =
+    _.trim == v
+
+  def textAt(ns: NodeSeq): Option[String] =
+    ns.headOption.map(_.text).map(_.trim).filter(_.nonEmpty)
+
+  def extract(path: String)(xml: Elem): Option[String] =
+    val names = path.split('.').toList
+    val nodes = names.foldLeft(xml: NodeSeq)((acc, name) => acc \ name)
+    textAt(nodes)

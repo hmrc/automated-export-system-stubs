@@ -155,3 +155,4 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       elementText(xml, "correlationId") shouldBe "some-correlation-id"
       elementText(xml, "timestamp")       should not be empty
   }
+  

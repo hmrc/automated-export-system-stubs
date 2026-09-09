@@ -128,6 +128,50 @@ class MessageControllerISpec extends BaseISpec:
       }
     }
 
+    "returns 204 for async IE917 path (e.g. DUCR ends B0 -> code 90 matched and forwarded)" in {
+      val body: Elem =
+        <AESDigitalNotification>
+          <Header>
+            <messageSender>GB123</messageSender>
+          </Header>
+          <Body>
+            <ExportOperation>
+              <MRN>26GB123456789ABCDEB0</MRN>
+            </ExportOperation>
+          </Body>
+        </AESDigitalNotification>
+
+      stubFor(
+        post(urlEqualTo("/automated-export-system-notifications/notification"))
+          .willReturn(aResponse().withStatus(204))
+      )
+
+      route(
+        app,
+        FakeRequest(POST, endpoint)
+          .withHeaders(validHeaders *)
+          .withXmlBody(body)
+      ).value
+      val result = route(
+        app,
+        FakeRequest(POST, endpoint)
+          .withHeaders(validHeaders *)
+          .withXmlBody(body)
+      ).value
+
+      status(result) shouldBe NO_CONTENT
+      eventually {
+        wmVerify(
+          moreThanOrExactly(1),
+          postRequestedFor(urlEqualTo("/automated-export-system-notifications/notification"))
+            .withHeader("x-correlation-id", equalTo("corr-2"))
+            .withHeader("Content-Type", containing("application/xml"))
+            .withRequestBody(containing("<messageType>CD906C</messageType>"))
+            .withRequestBody(containing("<FunctionalError>"))
+        )
+      }
+    }
+
     "returns 204 for normal ACK path when no sync/IE906 rule matches" in {
       val body: Elem =
         <AESDigitalNotification>

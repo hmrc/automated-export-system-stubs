@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors
+package uk.gov.hmrc.automatedexportsystemstubs.errors.IE917
+
+import uk.gov.hmrc.automatedexportsystemstubs.errors.IE917.IE917Rules.all
 
 import scala.xml.Elem
-import IE906Rules.all
 
-object Ie906Engine:
+object IE917Engine:
   final case class MatchResult(code: String, pointer: String, originalValue: String)
 
   def allMatches(xml: Elem): Seq[MatchResult] =
@@ -27,10 +28,10 @@ object Ie906Engine:
       rule.valueExtractor(xml).filter(rule.matches).map(v => MatchResult(rule.code, rule.elementPath, v))
     }
 
-  def toFunctionalError(m: MatchResult): Elem =
-    <FunctionalError>
+  def toXmlError(m: MatchResult): Elem =
+    <XmlError>
       <errorPointer>{m.pointer.trim}</errorPointer>
       <errorCode>{m.code}</errorCode>
-      <errorReason>{"ERR02"}</errorReason>
+      <errorText>{"ERR02"}</errorText>
       <originalAttributeValue>{m.originalValue}</originalAttributeValue>
-    </FunctionalError>
+    </XmlError>

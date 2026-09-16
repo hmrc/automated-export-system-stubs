@@ -62,10 +62,10 @@ object NotificationXmlBuilder extends Logging:
       )
     )
 
-  def buildIe906ResponseXml(
-    data:            AckNotification,
-    currentDateTime: String,
-    xmlError:        List[Elem]
+  def buildIE906ResponseXml(
+    data:             AckNotification,
+    currentDateTime:  String,
+    functionalErrors: List[Elem]
   ): Elem =
     buildEnvelope(
       data,
@@ -74,7 +74,24 @@ object NotificationXmlBuilder extends Logging:
       bodyNodes = Seq(
         <messageCode>CC507C</messageCode>,
         <MRN>{data.mrn}</MRN>
-      ) ++ xmlError
+      ) ++ functionalErrors
+    )
+
+  def buildIE917ResponseXml(
+    data:            AckNotification,
+    currentDateTime: String,
+    xmlErrors:       List[Elem]
+  ): Elem =
+    buildEnvelope(
+      data,
+      currentDateTime,
+      messageType = "CD917C",
+      bodyNodes = Seq(
+        <messageCode>CC507C</messageCode>,
+        <MRN>
+            {data.mrn}
+          </MRN>
+      ) ++ xmlErrors
     )
 
   def xmlToString(xml: Elem): String = xml.toString()

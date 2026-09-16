@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors
+package uk.gov.hmrc.automatedexportsystemstubs.errors.IE917
 
 import scala.xml.Elem
 
-final case class FunctionalRule(
+final case class XmlRule(
   code:           String,
   elementPath:    String,
   valueExtractor: Elem => Option[String],

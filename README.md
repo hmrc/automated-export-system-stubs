@@ -6,7 +6,7 @@ It contains a single endpoint, and returns either a 204 response of a 400, 401, 
 
 ## Running the stubs
 
-It runs on port 5002 and is included in the service manager profile AUTOMATED_EXPORT_SYSTEM_ALL
+It runs on port 5002 and is included in the service manager profile AUTOMATED_EXPORT_SERVICE_ALL
 
 ## Technical documentation
 

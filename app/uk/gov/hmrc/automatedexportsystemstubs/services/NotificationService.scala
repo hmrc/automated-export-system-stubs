@@ -17,12 +17,12 @@
 package uk.gov.hmrc.automatedexportsystemstubs.services
 
 import uk.gov.hmrc.automatedexportsystemstubs.connectors.NotificationConnector
-import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
+import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
-import scala.xml.Elem
+import scala.xml.NodeSeq
 
 @Singleton
 class NotificationService @Inject() (
@@ -30,21 +30,22 @@ class NotificationService @Inject() (
 ):
 
   def sendAckNotification(
-    notification:  AckNotification,
+    notification:  NotificationData,
+    actionCode:    ActionCode,
     correlationId: String
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
-    notificationConnector.sendNotification(notification, correlationId: String)
+    notificationConnector.sendNotification(notification, actionCode, correlationId)
 
   def sendIE906Notification(
-    notification:  AckNotification,
+    notification:  NotificationData,
     correlationId: String,
-    errors:        List[Elem]
+    errors:        NodeSeq
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
     notificationConnector.send906Notification(notification, correlationId, errors)
 
   def sendIE917Notification(
-    notification:  AckNotification,
+    notification:  NotificationData,
     correlationId: String,
-    errors:        List[Elem]
+    errors:        NodeSeq
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
     notificationConnector.send917Notification(notification, correlationId, errors)

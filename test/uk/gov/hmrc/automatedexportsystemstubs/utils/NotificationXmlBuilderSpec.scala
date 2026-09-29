@@ -17,7 +17,7 @@
 package uk.gov.hmrc.automatedexportsystemstubs.utils
 
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
-import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
+import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
 
 import scala.xml.{Elem, XML}
 
@@ -106,10 +106,11 @@ class NotificationXmlBuilderSpec extends BaseSpec {
   "buildAckResponseXml" - {
 
     "build valid response XML with all required elements" in {
-      val ackNotification = AckNotification("GB123456789000", "corr-123", "26GB123456789ABCDE1")
+      val ackNotification = NotificationData("GB123456789000", "corr-123", "26GB123456789ABCDE1")
       val currentDateTime = "2026-08-10T14:30:00"
 
-      val result = NotificationXmlBuilder.buildAckResponseXml(ackNotification, currentDateTime)
+      val result: Elem =
+        NotificationXmlBuilder.buildAckResponseXml(ackNotification, ActionCode.Accepted, currentDateTime)
 
       (result \\ "messageSender").text         shouldBe "NECA.XI"
       (result \\ "messageRecipient").text      shouldBe "GB123456789000"
@@ -123,10 +124,11 @@ class NotificationXmlBuilderSpec extends BaseSpec {
     }
 
     "include correct namespace" in {
-      val ackNotification = AckNotification("GB123456789000", "corr-123", "26GB123456789ABCDE1")
+      val ackNotification = NotificationData("GB123456789000", "corr-123", "26GB123456789ABCDE1")
       val currentDateTime = "2026-08-10T14:30:00"
 
-      val result    = NotificationXmlBuilder.buildAckResponseXml(ackNotification, currentDateTime)
+      val result: Elem =
+        NotificationXmlBuilder.buildAckResponseXml(ackNotification, ActionCode.Diversion, currentDateTime)
       val xmlString = result.toString()
 
       xmlString should include("""xmlns="http://www.hmrc.gsi.gov.uk/eis"""")

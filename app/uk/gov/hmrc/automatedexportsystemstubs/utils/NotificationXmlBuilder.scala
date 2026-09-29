@@ -16,27 +16,26 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.utils
 
-import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
+import play.api.{Logger, Logging}
+import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
 
 import scala.xml.*
-import play.api.{Logger, Logging}
-import scala.xml.Elem
 
 object NotificationXmlBuilder extends Logging:
 
   override val logger = Logger(this.getClass)
 
-  def parseIncomingAckXml(correlationId: String, xml: scala.xml.Elem): AckNotification =
+  def parseIncomingAckXml(correlationId: String, xml: NodeSeq): NotificationData =
     val mrn  = (xml \\ "MRN").text.trim
     val eori = (xml \\ "messageSender").text.trim
     if mrn.isEmpty || eori.isEmpty then throw new IllegalArgumentException("Missing required fields: MRN, EORI")
-    AckNotification(eori, correlationId, mrn)
+    NotificationData(eori, correlationId, mrn)
 
   private def buildEnvelope(
-    data:            AckNotification,
+    data:            NotificationData,
     currentDateTime: String,
     messageType:     String,
-    bodyNodes:       Seq[scala.xml.Node]
+    bodyNodes:       NodeSeq
   ): Elem =
     <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
       <Header>
@@ -47,25 +46,31 @@ object NotificationXmlBuilder extends Logging:
         <messageType>{messageType}</messageType>
         <correlationIdentifier>{data.correlationId}</correlationIdentifier>
       </Header>
-      <Body>{bodyNodes}</Body>
+      <Body>
+        {bodyNodes}
+      </Body>
     </AESDigitalNotification>
 
-  def buildAckResponseXml(data: AckNotification, currentDateTime: String): Elem =
+  def buildAckResponseXml(
+    data:            NotificationData,
+    actionCode:      ActionCode,
+    currentDateTime: String
+  ): Elem =
     buildEnvelope(
       data,
       currentDateTime,
       messageType = "ACK",
       bodyNodes = Seq(
         <messageCode>CC507C</messageCode>,
-        <actionCode>1</actionCode>,
+        <actionCode>{actionCode.value}</actionCode>,
         <MRN>{data.mrn}</MRN>
       )
     )
 
   def buildIE906ResponseXml(
-    data:             AckNotification,
+    data:             NotificationData,
     currentDateTime:  String,
-    functionalErrors: List[Elem]
+    functionalErrors: NodeSeq
   ): Elem =
     buildEnvelope(
       data,
@@ -78,9 +83,9 @@ object NotificationXmlBuilder extends Logging:
     )
 
   def buildIE917ResponseXml(
-    data:            AckNotification,
+    data:            NotificationData,
     currentDateTime: String,
-    xmlErrors:       List[Elem]
+    xmlErrors:       NodeSeq
   ): Elem =
     buildEnvelope(
       data,

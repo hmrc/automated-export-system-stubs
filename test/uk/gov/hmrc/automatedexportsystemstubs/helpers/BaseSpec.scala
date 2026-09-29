@@ -41,7 +41,6 @@ trait BaseSpec
 
   implicit lazy val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
   implicit lazy val hc: HeaderCarrier    = HeaderCarrier()
-  val contentType:      (String, String) = "Content-Type" -> "application/xml"
 
   implicit val fakeRequest: FakeRequest[AnyContentAsEmpty.type] = FakeRequest()
     .withHeaders(TestData.validAuthHeaders)

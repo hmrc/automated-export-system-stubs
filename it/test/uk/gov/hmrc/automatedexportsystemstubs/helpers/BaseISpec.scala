@@ -16,19 +16,20 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.helpers
 
-import com.github.tomakehurst.wiremock.client.WireMock.*
+import org.scalatest.*
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.*
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.Application
 import play.api.http.{Status, *}
+import play.api.inject.Binding
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.mvc.Results
 import play.api.test.*
-import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, WireMockSupport}
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.AllMocks
+import uk.gov.hmrc.http.test.WireMockSupport
 
 trait BaseISpec
     extends AnyFreeSpecLike
@@ -59,30 +60,20 @@ trait BaseISpec
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = Span(5, Seconds), interval = Span(100, Millis))
 
-  if (!mockServer.isRunning) {
-    mockServer.start()
-    com.github.tomakehurst.wiremock.client.WireMock.configureFor(mockServerHost, mockServer.port())
-  }
+  def config: Map[String, Any] =
+    Map(
+      "microservice.services.aes-notifications.url" -> s"http://$wireMockHost:$wireMockPort/automated-export-system-notifications/notification",
+      "microservice.services.auth.host"             -> wireMockHost,
+      "microservice.services.auth.port"             -> wireMockPort,
+      "metrics.enabled"                             -> "false"
+    )
+
+  def bindingOverrides: Seq[Binding[?]] = Seq.empty
+
+  lazy val guiceApplicationBuilder: GuiceApplicationBuilder =
+    GuiceApplicationBuilder()
+      .configure(config)
+      .overrides(bindingOverrides)
 
   override lazy val app: Application =
-    GuiceApplicationBuilder()
-      .configure(
-        "microservice.services.aes-notifications.url" -> s"http://$mockServerHost:$mockServerPort/automated-export-system-notifications/notification",
-        "microservice.services.aes-notifications.auth-token" -> "auth-token",
-        "microservice.services.auth.host"                    -> mockServerHost,
-        "microservice.services.auth.port"                    -> mockServerPort,
-        "metrics.enabled"                                    -> "false"
-      )
-      .build()
-
-  override def beforeEach(): Unit = {
-    super.beforeEach()
-    stubFor(
-      post(urlEqualTo("/notification"))
-        .willReturn(
-          aResponse()
-            .withStatus(204)
-            .withBody("")
-        )
-    )
-  }
+    guiceApplicationBuilder.build()

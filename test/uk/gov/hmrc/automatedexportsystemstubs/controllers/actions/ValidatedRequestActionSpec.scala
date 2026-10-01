@@ -103,6 +103,63 @@ class ValidatedRequestActionSpec extends BaseSpec {
       Helpers.contentAsString(result) should include("<errorCode>400</errorCode>")
     }
 
+    "OK when header matches the configured prefix" in new Setup {
+      when(mockAppConfig.requiredHeaders).thenReturn(
+        Map("authorization" -> "Bearer *")
+      )
+
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+
+      val request = FakeRequest("GET", "/test")
+        .withHeaders("authorization" -> "Bearer test-token")
+
+      val result =
+        action.invokeBlock(
+          request,
+          (_: ValidatedRequest[AnyContent]) => Future.successful(Results.Ok)
+        )
+
+      status(result) shouldBe Status.OK
+    }
+
+    "BAD_REQUEST when Authorization does not have the Bearer prefix" in new Setup {
+      when(mockAppConfig.requiredHeaders).thenReturn(
+        Map("authorization" -> "Bearer *")
+      )
+
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+
+      val request = FakeRequest("GET", "/test")
+        .withHeaders("authorization" -> "test-token")
+
+      val result =
+        action.invokeBlock(
+          request,
+          (_: ValidatedRequest[AnyContent]) => Future.successful(Results.Ok)
+        )
+
+      status(result) shouldBe Status.BAD_REQUEST
+    }
+
+    "BAD_REQUEST when Bearer token is empty" in new Setup {
+      when(mockAppConfig.requiredHeaders).thenReturn(
+        Map("authorization" -> "Bearer *")
+      )
+
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+
+      val request = FakeRequest("GET", "/test")
+        .withHeaders("authorization" -> "Bearer ")
+
+      val result =
+        action.invokeBlock(
+          request,
+          (_: ValidatedRequest[AnyContent]) => Future.successful(Results.Ok)
+        )
+
+      status(result) shouldBe Status.BAD_REQUEST
+    }
+
     "OK when all headers are present" in new Setup {
       val mockAppConfig = mock[AppConfig]
       when(mockAppConfig.requiredHeaders).thenReturn(

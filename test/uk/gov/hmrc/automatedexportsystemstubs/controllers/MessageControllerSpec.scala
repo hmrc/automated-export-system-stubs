@@ -77,7 +77,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       "x-forwarded-host" -> "*",
       "x-correlation-id" -> "*",
       "date"             -> "*",
-      "authorization"    -> "*",
+      "authorization"    -> "Bearer *",
       "content-type"     -> "application/xml",
       "accept"           -> "application/xml",
       "message-type"     -> "aesIE507Request"

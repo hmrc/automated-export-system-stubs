@@ -83,7 +83,7 @@ class NotificationConnector @Inject() (
     http
       .post(url"$notificationUrl")
       .setHeader(
-        "Authorization"    -> token,
+        "Authorization"    -> s"Bearer $token",
         "Content-Type"     -> "application/xml",
         "x-correlation-id" -> correlationId
       )

@@ -57,9 +57,20 @@ class ValidatedRequestAction @Inject() (
     Future.successful {
       val invalidHeaders = appConfig.requiredHeaders.filter { case (key, expectedValue) =>
         request.headers.get(key) match {
-          case None                                 => true
+          case None =>
+            true
+
           case Some(actual) if expectedValue == "*" =>
-            actual.trim.isEmpty || actual.trim == "*" || (key.equalsIgnoreCase("date") && !isValidHttpDate(actual))
+            actual.trim.isEmpty ||
+            actual.trim == "*" ||
+            (key.equalsIgnoreCase("date") && !isValidHttpDate(actual))
+
+          case Some(actual) if expectedValue.endsWith("*") =>
+            val expectedPrefix = expectedValue.dropRight(1)
+
+            !actual.startsWith(expectedPrefix) ||
+            actual.drop(expectedPrefix.length).trim.isEmpty
+
           case Some(actual) =>
             actual != expectedValue
         }

@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors
+package uk.gov.hmrc.automatedexportsystemstubs.async.IE906
 
-import uk.gov.hmrc.automatedexportsystemstubs.errors.IE906.Ie906Engine
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
 
 import scala.xml.Elem
@@ -24,9 +23,9 @@ import scala.xml.Elem
 class IE906EngineSpec extends BaseSpec:
   "IE906Engine.toXml" - {
     "build one error node " in {
-      val m = Ie906Engine.MatchResult("90", "/Body/MRN", "26GB123456789ABCDEB0")
+      val m = IE906Engine.MatchResult("90", "/Body/MRN", "26GB123456789ABCDEB0")
 
-      val xml = Ie906Engine.toFunctionalError(m)
+      val xml = IE906Engine.toFunctionalError(m)
 
       (xml \ "errorPointer").text           shouldBe "/Body/MRN"
       (xml \ "errorCode").text              shouldBe "90"
@@ -45,7 +44,7 @@ class IE906EngineSpec extends BaseSpec:
           </AESDigitalNotification>
 
         val errors: Seq[Elem] =
-          Ie906Engine.allMatches(input).map(Ie906Engine.toFunctionalError)
+          IE906Engine.allMatches(input).map(IE906Engine.toFunctionalError)
 
         errors.size shouldBe 2
 
@@ -62,7 +61,7 @@ class IE906EngineSpec extends BaseSpec:
             </Body>
           </AESDigitalNotification>
 
-        val errors = Ie906Engine.allMatches(input).map(Ie906Engine.toFunctionalError)
+        val errors = IE906Engine.allMatches(input).map(IE906Engine.toFunctionalError)
         errors shouldBe empty
       }
     }

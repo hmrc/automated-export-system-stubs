@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors.IE917
+package uk.gov.hmrc.automatedexportsystemstubs.async.IE917
 
-import uk.gov.hmrc.automatedexportsystemstubs.errors.IE917.IE917Rules.all
+import uk.gov.hmrc.automatedexportsystemstubs.async.IE917.IE917Rules.all
 
-import scala.xml.Elem
+import scala.xml.{Elem, NodeSeq}
 
 object IE917Engine:
   final case class MatchResult(code: String, pointer: String, originalValue: String)
 
-  def allMatches(xml: Elem): Seq[MatchResult] =
+  def allMatches(xml: NodeSeq): Seq[MatchResult] =
     all.flatMap { rule =>
-      rule.valueExtractor(xml).filter(rule.matches).map(v => MatchResult(rule.code, rule.elementPath, v))
+      rule.extractor.extract(xml).filter(rule.matches).map(v => MatchResult(rule.code, rule.extractor.path, v))
     }
 
   def toXmlError(m: MatchResult): Elem =
     <XmlError>
       <errorPointer>{m.pointer.trim}</errorPointer>
       <errorCode>{m.code}</errorCode>
-      <errorText>{"ERR02"}</errorText>
+      <errorText>ERR02</errorText>
       <originalAttributeValue>{m.originalValue}</originalAttributeValue>
     </XmlError>

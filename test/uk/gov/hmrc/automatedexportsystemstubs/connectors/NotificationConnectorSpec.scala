@@ -20,21 +20,27 @@ import org.mockito.ArgumentMatchers.{any, eq as mEq}
 import org.mockito.Mockito.{verify, when}
 import play.api.http.Status
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
-import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
+import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
 import uk.gov.hmrc.http.{Authorization, HeaderCarrier, HttpResponse, StringContextOps}
 
 import java.net.URL
+import java.time.{Clock, Instant, ZoneOffset}
 import scala.concurrent.Future
+import scala.xml.NodeSeq
 
 class NotificationConnectorSpec extends BaseSpec:
   trait Setup:
     val baseUrl       = "http://localhost:9001/notification"
     val token         = "test-bearer-token"
     val correlationId = "some-correlationId"
+    val instant: Instant = Instant.parse("2026-10-01T00:00:00.000Z")
+
+    val clock: Clock = Clock.fixed(instant, ZoneOffset.UTC)
 
     val connector: NotificationConnector =
       new NotificationConnector(
         http = mockHttpClient,
+        clock = clock,
         notificationUrl = baseUrl,
         token = token
       )
@@ -48,7 +54,7 @@ class NotificationConnectorSpec extends BaseSpec:
           otherHeaders = Seq("x-correlation-id" -> "correlationId")
         )
       when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
-      val notification = AckNotification("GB123456789000", "some-correlationId", "26GB123456789ABCDE1")
+      val notification = NotificationData("GB123456789000", "some-correlationId", "26GB123456789ABCDE1")
       when(mockHttpClient.post(any())(any())) thenReturn mockRequestBuilder
       when(mockRequestBuilder.withBody(any[String])(any(), any(), any()))
         .thenReturn(mockRequestBuilder)
@@ -57,7 +63,9 @@ class NotificationConnectorSpec extends BaseSpec:
       when(mockRequestBuilder.execute(any(), any()))
         .thenReturn(Future.successful(HttpResponse(204, "")))
 
-      val result = connector.sendNotification(notification, correlationId).futureValue
+      val result: HttpResponse =
+        connector.sendNotification(notification, ActionCode.Accepted, correlationId).futureValue
+
       result.status shouldBe NO_CONTENT
 
       verify(mockHttpClient)
@@ -75,7 +83,7 @@ class NotificationConnectorSpec extends BaseSpec:
           otherHeaders = Seq("x-correlation-id" -> "correlationId")
         )
 
-      val notification = AckNotification("GB123456789000", "some-correlationId", "26GB123456789ABCDEB0")
+      val notification = NotificationData("GB123456789000", "some-correlationId", "26GB123456789ABCDEB0")
       val xmlErrors: List[scala.xml.Elem] =
         List(<FunctionalError>
           <errorPointer>/Body/MRN</errorPointer>
@@ -85,7 +93,7 @@ class NotificationConnectorSpec extends BaseSpec:
         </FunctionalError>)
 
       when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
-      when(mockRequestBuilder.withBody(any[String])(any(), any(), any())).thenReturn(mockRequestBuilder)
+      when(mockRequestBuilder.withBody(any[NodeSeq])(any(), any(), any())).thenReturn(mockRequestBuilder)
       when(mockRequestBuilder.setHeader(any[(String, String)])).thenReturn(mockRequestBuilder)
       when(mockRequestBuilder.execute(any(), any())).thenReturn(Future.successful(HttpResponse(204, "")))
 
@@ -94,13 +102,13 @@ class NotificationConnectorSpec extends BaseSpec:
 
       verify(mockHttpClient).post(mEq(url"http://localhost:9001/notification"))(any[HeaderCarrier])
 
-      val bodyCaptor = org.mockito.ArgumentCaptor.forClass(classOf[String])
+      val bodyCaptor = org.mockito.ArgumentCaptor.forClass(classOf[NodeSeq])
       verify(mockRequestBuilder).withBody(bodyCaptor.capture())(any(), any(), any())
 
-      val sentXml = bodyCaptor.getValue
-      sentXml should include("<messageType>CD906C</messageType>")
-      sentXml should include("<messageCode>CC507C</messageCode>")
-      sentXml should include("<FunctionalError>")
+      val sentXmlString: String = bodyCaptor.getValue.toString
+      sentXmlString should include("<messageType>CD906C</messageType>")
+      sentXmlString should include("<messageCode>CC507C</messageCode>")
+      sentXmlString should include("<FunctionalError>")
     }
 
   }
@@ -114,7 +122,7 @@ class NotificationConnectorSpec extends BaseSpec:
           otherHeaders = Seq("x-correlation-id" -> "correlationId")
         )
 
-      val notification = AckNotification("GB123456789000", "some-correlationId", "26GB123456789ABCDEB0")
+      val notification = NotificationData("GB123456789000", "some-correlationId", "26GB123456789ABCDEB0")
       val xmlErrors: List[scala.xml.Elem] =
         List(<XmlError>
           <errorPointer>/Some/path</errorPointer>
@@ -124,7 +132,7 @@ class NotificationConnectorSpec extends BaseSpec:
         </XmlError>)
 
       when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
-      when(mockRequestBuilder.withBody(any[String])(any(), any(), any())).thenReturn(mockRequestBuilder)
+      when(mockRequestBuilder.withBody(any[NodeSeq])(any(), any(), any())).thenReturn(mockRequestBuilder)
       when(mockRequestBuilder.setHeader(any[(String, String)])).thenReturn(mockRequestBuilder)
       when(mockRequestBuilder.execute(any(), any())).thenReturn(Future.successful(HttpResponse(204, "")))
 
@@ -133,13 +141,13 @@ class NotificationConnectorSpec extends BaseSpec:
 
       verify(mockHttpClient).post(mEq(url"http://localhost:9001/notification"))(any[HeaderCarrier])
 
-      val bodyCaptor = org.mockito.ArgumentCaptor.forClass(classOf[String])
+      val bodyCaptor = org.mockito.ArgumentCaptor.forClass(classOf[NodeSeq])
       verify(mockRequestBuilder).withBody(bodyCaptor.capture())(any(), any(), any())
 
-      val sentXml = bodyCaptor.getValue
-      sentXml should include("<messageType>CD917C</messageType>")
-      sentXml should include("<messageCode>CC507C</messageCode>")
-      sentXml should include("<XmlError>")
+      val sentXmlString: String = bodyCaptor.getValue.toString
+      sentXmlString should include("<messageType>CD917C</messageType>")
+      sentXmlString should include("<messageCode>CC507C</messageCode>")
+      sentXmlString should include("<XmlError>")
     }
 
   }
@@ -152,16 +160,16 @@ class NotificationConnectorSpec extends BaseSpec:
       )
     when(mockHttpClient.post(any[URL])(any[HeaderCarrier])).thenReturn(mockRequestBuilder)
 
-    val notification = AckNotification("GB123456789000", "some-correlationId", "26GB123456789ABCDE1")
+    val notification = NotificationData("GB123456789000", "some-correlationId", "26GB123456789ABCDE1")
     when(mockHttpClient.post(any())(any())) thenReturn mockRequestBuilder
-    when(mockRequestBuilder.withBody(any[String])(any(), any(), any()))
+    when(mockRequestBuilder.withBody(any[NodeSeq])(any(), any(), any()))
       .thenReturn(mockRequestBuilder)
     when(mockRequestBuilder.setHeader(any[(String, String)]))
       .thenReturn(mockRequestBuilder)
     when(mockRequestBuilder.execute(any(), any()))
       .thenReturn(Future.successful(HttpResponse(Status.INTERNAL_SERVER_ERROR, "Server Error")))
 
-    val result = connector.sendNotification(notification, correlationId)
+    val result = connector.sendNotification(notification, ActionCode.Diversion, correlationId)
 
     result.futureValue.status shouldBe Status.INTERNAL_SERVER_ERROR
   }

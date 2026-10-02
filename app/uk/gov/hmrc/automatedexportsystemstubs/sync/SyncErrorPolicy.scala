@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors
+package uk.gov.hmrc.automatedexportsystemstubs.sync
 
-import scala.xml.Elem
+import scala.xml.NodeSeq
 
 final case class SyncError(status: Int, message: String, detail: String)
 
 object SyncErrorPolicy:
 
-  private def mrn(xml: Elem): Option[String] =
+  private def mrn(xml: NodeSeq): Option[String] =
     (xml \\ "MRN").headOption.map(_.text.trim)
 
-  def syncErrorFor(xml: Elem): Option[SyncError] =
+  def syncErrorFor(xml: NodeSeq): Option[SyncError] =
     mrn(xml).flatMap {
       case v if v.endsWith("A0") => Some(SyncError(401, "UNAUTHORIZED", "Invalid or missing token"))
       case v if v.endsWith("A1") => Some(SyncError(404, "NOT_FOUND", "EIS endpoint not found"))

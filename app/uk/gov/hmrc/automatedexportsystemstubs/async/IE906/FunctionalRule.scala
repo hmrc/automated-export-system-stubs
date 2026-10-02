@@ -14,22 +14,12 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.utils
+package uk.gov.hmrc.automatedexportsystemstubs.async.IE906
 
-import scala.xml.NodeSeq
+import uk.gov.hmrc.automatedexportsystemstubs.utils.XmlRequestBodyExtractor
 
-object XmlRequestHelper:
-
-  def endsWith(suffix: String): String => Boolean =
-    _.trim.endsWith(suffix)
-
-  def equalsTo(v: String): String => Boolean =
-    _.trim == v
-
-  private def textAt(ns: NodeSeq): Option[String] =
-    ns.headOption.map(_.text).map(_.trim).filter(_.nonEmpty)
-
-  def extract(path: String)(xml: NodeSeq): Option[String] =
-    val names = path.split('.').toList
-    val nodes = names.foldLeft(xml: NodeSeq)((acc, name) => acc \ name)
-    textAt(nodes)
+final case class FunctionalRule(
+  code:      String,
+  extractor: XmlRequestBodyExtractor,
+  matches:   String => Boolean
+)

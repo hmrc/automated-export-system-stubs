@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors.IE906
+package uk.gov.hmrc.automatedexportsystemstubs.async.IE906
 
-import IE906Rules.all
+import uk.gov.hmrc.automatedexportsystemstubs.async.IE906.IE906Rules.all
 
-import scala.xml.Elem
+import scala.xml.{Elem, NodeSeq}
 
-object Ie906Engine:
+object IE906Engine:
   final case class MatchResult(code: String, pointer: String, originalValue: String)
 
-  def allMatches(xml: Elem): Seq[MatchResult] =
+  def allMatches(xml: NodeSeq): Seq[MatchResult] =
     all.flatMap { rule =>
-      rule.valueExtractor(xml).filter(rule.matches).map(v => MatchResult(rule.code, rule.elementPath, v))
+      rule.extractor.extract(xml).filter(rule.matches).map(v => MatchResult(rule.code, rule.extractor.path, v))
     }
 
   def toFunctionalError(m: MatchResult): Elem =
     <FunctionalError>
       <errorPointer>{m.pointer.trim}</errorPointer>
       <errorCode>{m.code}</errorCode>
-      <errorReason>{"ERR02"}</errorReason>
+      <errorReason>ERR02</errorReason>
       <originalAttributeValue>{m.originalValue}</originalAttributeValue>
     </FunctionalError>

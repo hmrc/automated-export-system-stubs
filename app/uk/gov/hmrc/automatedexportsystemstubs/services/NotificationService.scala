@@ -16,35 +16,77 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.services
 
+import org.apache.pekko.actor.ActorSystem
+import play.api.Logging
+import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
 import uk.gov.hmrc.automatedexportsystemstubs.connectors.NotificationConnector
 import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.Elem
 
 @Singleton
 class NotificationService @Inject() (
-  notificationConnector: NotificationConnector
-):
+  notificationConnector: NotificationConnector,
+  appConfig:             AppConfig,
+  actorSystem:           ActorSystem
+)(implicit ec: ExecutionContext)
+    extends Logging:
 
   def sendAckNotification(
     notification:  AckNotification,
     correlationId: String
-  )(implicit hc: HeaderCarrier): Future[HttpResponse] =
-    notificationConnector.sendNotification(notification, correlationId: String)
+  )(implicit hc: HeaderCarrier): Future[Unit] =
+    scheduleNotification("ACK", correlationId) {
+      notificationConnector.sendNotification(
+        notification,
+        correlationId
+      )
+    }
 
   def sendIE906Notification(
     notification:  AckNotification,
     correlationId: String,
     errors:        List[Elem]
-  )(implicit hc: HeaderCarrier): Future[HttpResponse] =
-    notificationConnector.send906Notification(notification, correlationId, errors)
+  )(implicit hc: HeaderCarrier): Future[Unit] =
+    scheduleNotification("IE906", correlationId) {
+      notificationConnector.send906Notification(
+        notification,
+        correlationId,
+        errors
+      )
+    }
 
   def sendIE917Notification(
     notification:  AckNotification,
     correlationId: String,
     errors:        List[Elem]
-  )(implicit hc: HeaderCarrier): Future[HttpResponse] =
-    notificationConnector.send917Notification(notification, correlationId, errors)
+  )(implicit hc: HeaderCarrier): Future[Unit] =
+    scheduleNotification("IE917", correlationId) {
+      notificationConnector.send917Notification(
+        notification,
+        correlationId,
+        errors
+      )
+    }
+
+  private def scheduleNotification(
+    notificationType: String,
+    correlationId:    String
+  )(
+    send: => Future[HttpResponse]
+  ): Future[Unit] = {
+
+    actorSystem.scheduler.scheduleOnce(appConfig.notificationDelay) {
+      send.failed.foreach { error =>
+        logger.warn(
+          s"Failed to send $notificationType notification correlationId=$correlationId",
+          error
+        )
+      }
+    }
+
+    Future.successful(())
+  }

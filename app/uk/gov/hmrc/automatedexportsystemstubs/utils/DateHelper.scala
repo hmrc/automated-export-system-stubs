@@ -16,12 +16,17 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.utils
 
-import java.time.{Instant, ZonedDateTime}
+import java.time.{Instant, ZoneOffset, ZonedDateTime}
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 object DateHelper:
+
+  private val httpDateFormatter =
+    DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'UTC'", Locale.ENGLISH).withZone(ZoneOffset.UTC)
+
   def currentHttpDate: String =
     DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now())
 
   def currentIsoTimestamp: String =
-    DateTimeFormatter.ISO_INSTANT.format(Instant.now())
+    httpDateFormatter.format(Instant.now())

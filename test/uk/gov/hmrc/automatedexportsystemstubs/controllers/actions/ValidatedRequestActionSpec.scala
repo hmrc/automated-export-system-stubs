@@ -109,7 +109,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         Map(
           "x-wild"  -> "*",
           "x-exact" -> "expected",
-          "date"    -> "Fri, 31 Jul 2026 10:30:00 GMT"
+          "date"    -> "Fri, 31 Jul 2026 10:30:00 UTC"
         )
       )
 

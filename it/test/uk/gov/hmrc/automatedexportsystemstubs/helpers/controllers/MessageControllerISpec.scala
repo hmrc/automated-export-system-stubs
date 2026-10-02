@@ -29,7 +29,7 @@ class MessageControllerISpec extends BaseISpec:
     "x-correlation-id" -> "corr-2",
     "accept"           -> "application/xml",
     "content-type"     -> "application/xml",
-    "date"             -> "Fri, 31 Jul 2026 10:30:00 GMT",
+    "date"             -> "Fri, 31 Jul 2026 10:30:00 UTC",
     "x-message-type"   -> "aesIE507Request",
     "x-forwarded-host" -> "some-host"
   )

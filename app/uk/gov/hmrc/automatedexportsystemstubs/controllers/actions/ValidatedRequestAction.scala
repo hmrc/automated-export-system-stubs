@@ -30,6 +30,7 @@ import uk.gov.hmrc.automatedexportsystemstubs.models.ErrorDetail.toXml
 import uk.gov.hmrc.automatedexportsystemstubs.models.{ErrorDetail, SourceFaultDetail}
 import uk.gov.hmrc.automatedexportsystemstubs.utils.DateHelper
 
+import java.util.Locale
 import scala.util.Try
 
 @Singleton
@@ -50,8 +51,11 @@ class ValidatedRequestAction @Inject() (
       .fold(headers)(id => headers.withHeaders("x-correlation-id" -> id))
   }
 
+  private val httpDateFormatter =
+    DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'UTC'", Locale.ENGLISH).withZone(ZoneOffset.UTC)
+
   private def isValidHttpDate(value: String): Boolean =
-    Try(ZonedDateTime.parse(value, DateTimeFormatter.RFC_1123_DATE_TIME)).isSuccess
+    Try(httpDateFormatter.parse(value.trim)).isSuccess
 
   override protected def refine[A](request: Request[A]): Future[Either[Result, ValidatedRequest[A]]] =
     Future.successful {

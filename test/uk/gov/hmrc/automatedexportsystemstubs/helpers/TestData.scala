@@ -23,7 +23,7 @@ object TestData:
   val validAuthHeaders: Headers = Headers(
     "x-forwarded-host" -> "10.12.0.4",
     "x-correlation-id" -> "some-correlation-id",
-    "date"             -> "Sat, 01 Jun 2024 12:00:00 GMT",
+    "date"             -> "Sat, 01 Jun 2024 12:00:00 UTC",
     "content-type"     -> "application/xml",
     "accept"           -> "application/xml",
     "authorization"    -> "Bearer test-token",

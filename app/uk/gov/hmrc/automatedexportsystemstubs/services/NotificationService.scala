@@ -20,12 +20,13 @@ import org.apache.pekko.actor.ActorSystem
 import play.api.Logging
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
 import uk.gov.hmrc.automatedexportsystemstubs.connectors.NotificationConnector
-import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
+import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.Elem
+import scala.xml.NodeSeq
 
 @Singleton
 class NotificationService @Inject() (
@@ -36,7 +37,8 @@ class NotificationService @Inject() (
     extends Logging:
 
   def sendAckNotification(
-    notification:  AckNotification,
+    notification:  NotificationData,
+    actionCode:    ActionCode,
     correlationId: String
   )(implicit hc: HeaderCarrier): Future[Unit] =
     scheduleNotification("ACK", correlationId) {
@@ -47,7 +49,7 @@ class NotificationService @Inject() (
     }
 
   def sendIE906Notification(
-    notification:  AckNotification,
+    notification:  NotificationData,
     correlationId: String,
     errors:        List[Elem]
   )(implicit hc: HeaderCarrier): Future[Unit] =
@@ -60,7 +62,7 @@ class NotificationService @Inject() (
     }
 
   def sendIE917Notification(
-    notification:  AckNotification,
+    notification:  NotificationData,
     correlationId: String,
     errors:        List[Elem]
   )(implicit hc: HeaderCarrier): Future[Unit] =

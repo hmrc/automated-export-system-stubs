@@ -14,19 +14,12 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.utils
+package uk.gov.hmrc.automatedexportsystemstubs.async.IE906
 
-import java.time.format.DateTimeFormatter
-import java.time.{Instant, ZoneOffset, ZonedDateTime}
-import java.util.Locale
+import uk.gov.hmrc.automatedexportsystemstubs.utils.XmlRequestBodyExtractor
 
-object DateHelper:
-
-  lazy val httpDateFormatter =
-    DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'UTC'", Locale.ENGLISH).withZone(ZoneOffset.UTC)
-
-  def currentHttpDate: String =
-    DateTimeFormatter.RFC_1123_DATE_TIME.format(ZonedDateTime.now())
-
-  def currentIsoTimestamp: String =
-    httpDateFormatter.format(Instant.now())
+final case class FunctionalRule(
+  code:      String,
+  extractor: XmlRequestBodyExtractor,
+  matches:   String => Boolean
+)

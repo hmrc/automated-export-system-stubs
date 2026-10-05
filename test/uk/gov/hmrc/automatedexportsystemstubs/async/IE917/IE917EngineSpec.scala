@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors
+package uk.gov.hmrc.automatedexportsystemstubs.async.IE917
 
-import uk.gov.hmrc.automatedexportsystemstubs.errors.IE917.IE917Engine
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
 
 import scala.xml.Elem

@@ -16,20 +16,22 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.controllers
 
+import play.api.mvc.*
 import play.api.{Logger, Logging}
-import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
+import uk.gov.hmrc.automatedexportsystemstubs.async.IE507.AckRule
+import uk.gov.hmrc.automatedexportsystemstubs.async.IE906.IE906Engine
+import uk.gov.hmrc.automatedexportsystemstubs.async.IE917.IE917Engine
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
-import uk.gov.hmrc.automatedexportsystemstubs.errors.IE906.Ie906Engine
-import uk.gov.hmrc.automatedexportsystemstubs.errors.IE917.IE917Engine
-import uk.gov.hmrc.automatedexportsystemstubs.errors.SyncErrorPolicy
-import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
+import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
 import uk.gov.hmrc.automatedexportsystemstubs.services.NotificationService
+import uk.gov.hmrc.automatedexportsystemstubs.sync.{SyncError, SyncErrorPolicy}
 import uk.gov.hmrc.automatedexportsystemstubs.utils.{NotificationXmlBuilder, SyncErrorResponseHelper}
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.xml.Elem
+import scala.xml.NodeSeq
 
 @Singleton()
 class MessageController @Inject() (
@@ -37,20 +39,43 @@ class MessageController @Inject() (
   notificationService: NotificationService,
   validatedAction:     ValidatedRequestAction
 )(implicit ec: ExecutionContext)
-    extends AbstractController(cc)
+    extends BackendController(cc)
     with Logging:
 
   override val logger = Logger(this.getClass)
 
-  def message(): Action[AnyContent] = validatedAction.async { implicit request =>
-    val correlationId = request.headers.get("x-correlation-id").getOrElse("")
-    implicit val hc: HeaderCarrier =
-      HeaderCarrier(
-        extraHeaders = Seq("x-correlation-id" -> correlationId)
-      )
+  private def handleSync(
+    syncError:     SyncError,
+    correlationId: String
+  )(using request: Request[?]): Future[Result] =
+    logger.warn(
+      s"Sync error - status: ${syncError.status}," +
+        s"correlationId: $correlationId," +
+        s"message: ${syncError.message}," +
+        s"detail: ${syncError.detail}"
+    )
 
-    def getXmlErrors(notification: AckNotification, matches: Seq[IE917Engine.MatchResult]) =
-      val xmlErrors: List[Elem] = matches.map(IE917Engine.toXmlError).toList
+    Future.successful(
+      validatedAction
+        .errorResponse(
+          SyncErrorResponseHelper.createErrorResponse(
+            status = syncError.status,
+            correlationId = correlationId,
+            errorMessage = syncError.message,
+            detail = syncError.detail
+          ),
+          request
+        )
+    )
+
+  private def handleAsync(
+    xml:           NodeSeq,
+    notification:  NotificationData,
+    correlationId: String
+  )(using request: Request[?], hc: HeaderCarrier): Future[Result] =
+    def IE917Response(matches: Seq[IE917Engine.MatchResult]): Future[Result] =
+      val xmlErrors: NodeSeq = matches.flatMap(IE917Engine.toXmlError)
+
       notificationService
         .sendIE917Notification(notification = notification, correlationId = correlationId, errors = xmlErrors)
         .map(_ => validatedAction.successResponse(request))
@@ -58,9 +83,11 @@ class MessageController @Inject() (
           logger.warn("Failed to send EI917 error notification", e)
           validatedAction.errorResponse(InternalServerError, request)
         }
+    end IE917Response
 
-    def getFunctionalErrors(notification: AckNotification, matches: Seq[Ie906Engine.MatchResult]) =
-      val functionalErrors: List[Elem] = matches.map(Ie906Engine.toFunctionalError).toList
+    def IE906Response(matches: Seq[IE906Engine.MatchResult]): Future[Result] =
+      val functionalErrors: NodeSeq = matches.flatMap(IE906Engine.toFunctionalError)
+
       notificationService
         .sendIE906Notification(notification = notification, correlationId = correlationId, errors = functionalErrors)
         .map(_ => validatedAction.successResponse(request))
@@ -68,59 +95,76 @@ class MessageController @Inject() (
           logger.warn("Failed to send IE906 error notification", e)
           validatedAction.errorResponse(InternalServerError, request)
         }
+    end IE906Response
 
-    request.body.asXml.flatMap(_.headOption.collect { case e: Elem => e }) match
-      case None =>
-        logger.warn(s"Error: Invalid XML: ${request.body.toString}")
-        val response =
-          SyncErrorResponseHelper.createErrorResponse(
-            status = BAD_REQUEST,
-            correlationId = correlationId,
-            errorMessage = "Expected XML body",
-            detail = s"Payload submitted ${request.body.toString}"
+    def ackAcceptedResponse(hasBeenDiverted: Boolean): Future[Result] =
+      val logMessage: String =
+        if hasBeenDiverted then "Failed to send ACK Accepted after ACK Diversion notification"
+        else "Failed to send ACK Accepted notification"
+
+      notificationService
+        .sendAckNotification(notification, ActionCode.Accepted, correlationId)
+        .map(_ => validatedAction.successResponse(request))
+        .recover { case e =>
+          logger.error(logMessage, e)
+          validatedAction.errorResponse(InternalServerError, request)
+        }
+    end ackAcceptedResponse
+
+    def diversionResponse(): Future[Result] =
+      notificationService
+        .sendAckNotification(notification, ActionCode.Diversion, correlationId)
+        .flatMap(_ => nonDiversionResponse(hasBeenDiverted = true))
+        .recover { case e =>
+          logger.error("Failed to send ACK Diversion notification", e)
+          validatedAction.errorResponse(InternalServerError, request)
+        }
+    end diversionResponse
+
+    def nonDiversionResponse(hasBeenDiverted: Boolean): Future[Result] =
+      val IE917Matches: Seq[IE917Engine.MatchResult] = IE917Engine.allMatches(xml)
+
+      if IE917Matches.nonEmpty then IE917Response(IE917Matches)
+      else
+        val IE906Matches: Seq[IE906Engine.MatchResult] = IE906Engine.allMatches(xml)
+
+        if IE906Matches.nonEmpty then IE906Response(IE906Matches)
+        else ackAcceptedResponse(hasBeenDiverted)
+    end nonDiversionResponse
+
+    if AckRule.anyDiversionMatches(xml) then diversionResponse()
+    else nonDiversionResponse(hasBeenDiverted = false)
+  end handleAsync
+
+  def message(): Action[AnyContent] =
+    validatedAction.async { implicit request =>
+      val correlationId = request.headers.get("x-correlation-id").getOrElse("")
+
+      request.body.asXml match
+        case None =>
+          logger.warn(s"Error: Invalid XML: ${request.body.toString}")
+          val response =
+            SyncErrorResponseHelper.createErrorResponse(
+              status = BAD_REQUEST,
+              correlationId = correlationId,
+              errorMessage = "Expected XML body",
+              detail = s"Payload submitted ${request.body.toString}"
+            )
+
+          Future.successful(
+            validatedAction
+              .errorResponse(BadRequest(response.toString), request)
           )
-        Future.successful(
-          validatedAction
-            .errorResponse(BadRequest(response.toString), request)
-        )
 
-      case Some(elem) =>
-        SyncErrorPolicy.syncErrorFor(elem) match
-          case Some(syncErr) =>
-            logger.warn(
-              s"Sync error - status: ${syncErr.status}," +
-                s"correlationId: $correlationId," +
-                s"message: ${syncErr.message}," +
-                s"detail: ${syncErr.detail}"
-            )
-            Future.successful(
-              validatedAction
-                .errorResponse(
-                  SyncErrorResponseHelper.createErrorResponse(
-                    status = syncErr.status,
-                    correlationId = correlationId,
-                    errorMessage = syncErr.message,
-                    detail = syncErr.detail
-                  ),
-                  request
-                )
-            )
+        case Some(xml) =>
+          SyncErrorPolicy.syncErrorFor(xml) match
+            case Some(syncErr) =>
+              handleSync(syncErr, correlationId)
+            case None =>
+              val notification: NotificationData =
+                NotificationXmlBuilder.parseIncomingAckXml(correlationId, xml)
 
-          case None =>
-            val notification = NotificationXmlBuilder.parseIncomingAckXml(correlationId, elem)
-            IE917Engine.allMatches(elem) match
-              case matches if matches.nonEmpty =>
-                getXmlErrors(notification, matches)
-              case _ =>
-                Ie906Engine.allMatches(elem) match
-                  case matches if matches.nonEmpty =>
-                    getFunctionalErrors(notification, matches)
-                  case _ =>
-                    notificationService
-                      .sendAckNotification(notification, correlationId)
-                      .map(_ => validatedAction.successResponse(request))
-                      .recover { case e =>
-                        logger.error("Failed to send ACK notification", e)
-                        validatedAction.errorResponse(InternalServerError, request)
-                      }
-  }
+              handleAsync(xml, notification, correlationId)
+    }
+  end message
+end MessageController

@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors.IE906
+package uk.gov.hmrc.automatedexportsystemstubs.async.IE917
 
-import scala.xml.Elem
+import uk.gov.hmrc.automatedexportsystemstubs.utils.XmlRequestBodyExtractor
 
-final case class FunctionalRule(
-  code:           String,
-  elementPath:    String,
-  valueExtractor: Elem => Option[String],
-  matches:        String => Boolean
+final case class XmlRule(
+  code:      String,
+  extractor: XmlRequestBodyExtractor,
+  matches:   String => Boolean
 )

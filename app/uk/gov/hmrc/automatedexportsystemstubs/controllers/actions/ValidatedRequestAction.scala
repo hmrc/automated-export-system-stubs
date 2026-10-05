@@ -16,21 +16,19 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.controllers.actions
 
-import play.api.http.{HeaderNames, MimeTypes}
 import play.api.http.Status.BAD_REQUEST
+import play.api.http.{HeaderNames, MimeTypes}
 import play.api.mvc.*
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
-
-import java.time.{ZoneOffset, ZonedDateTime}
-import java.time.format.DateTimeFormatter
-import javax.inject.{Inject, Singleton}
-import scala.concurrent.{ExecutionContext, Future}
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.request.ValidatedRequest
 import uk.gov.hmrc.automatedexportsystemstubs.models.ErrorDetail.toXml
 import uk.gov.hmrc.automatedexportsystemstubs.models.{ErrorDetail, SourceFaultDetail}
 import uk.gov.hmrc.automatedexportsystemstubs.utils.DateHelper
 
-import java.util.Locale
+import java.time.format.DateTimeFormatter
+import java.time.{ZoneOffset, ZonedDateTime}
+import javax.inject.{Inject, Singleton}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 @Singleton
@@ -51,11 +49,8 @@ class ValidatedRequestAction @Inject() (
       .fold(headers)(id => headers.withHeaders("x-correlation-id" -> id))
   }
 
-  private val httpDateFormatter =
-    DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'UTC'", Locale.ENGLISH).withZone(ZoneOffset.UTC)
-
   private def isValidHttpDate(value: String): Boolean =
-    Try(httpDateFormatter.parse(value.trim)).isSuccess
+    Try(DateHelper.httpDateFormatter.parse(value.trim)).isSuccess
 
   override protected def refine[A](request: Request[A]): Future[Either[Result, ValidatedRequest[A]]] =
     Future.successful {

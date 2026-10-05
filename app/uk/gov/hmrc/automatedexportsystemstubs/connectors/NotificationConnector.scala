@@ -15,23 +15,24 @@
  */
 
 package uk.gov.hmrc.automatedexportsystemstubs.connectors
-import org.joda.time.DateTime
 import play.api.Logger
 import play.api.libs.ws.*
-import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
-import uk.gov.hmrc.automatedexportsystemstubs.utils.NotificationXmlBuilder
+import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
+import uk.gov.hmrc.automatedexportsystemstubs.utils.{DateHelper, NotificationXmlBuilder}
 import uk.gov.hmrc.http.HttpReads.Implicits
 import uk.gov.hmrc.http.HttpReads.Implicits.{readEitherOf, throwOnFailure}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpReads, HttpResponse, StringContextOps}
 
+import java.time.{Clock, Instant}
 import javax.inject.{Inject, Named, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.xml.Elem
+import scala.xml.{Elem, NodeSeq}
 
 @Singleton
 class NotificationConnector @Inject() (
   http:                                                                     HttpClientV2,
+  clock:                                                                    Clock,
   @Named("automated-export-system-notifications.base-url") notificationUrl: String,
   @Named("automated-export-system-notifications.bearer-token") token:       String
 )(implicit executionContext: ExecutionContext):
@@ -42,42 +43,46 @@ class NotificationConnector @Inject() (
   private val logger: Logger = Logger(this.getClass.getName)
 
   def sendNotification(
-    notificationData: AckNotification,
+    notificationData: NotificationData,
+    actionCode:       ActionCode,
     correlationId:    String
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
     send(notificationData, correlationId) { (data, now) =>
-      NotificationXmlBuilder.buildAckResponseXml(data, now)
+      NotificationXmlBuilder.buildAckResponseXml(data, actionCode, now)
     }
 
   def send906Notification(
-    notificationData: AckNotification,
+    notificationData: NotificationData,
     correlationId:    String,
-    functionalErrors: List[Elem]
+    functionalErrors: NodeSeq
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
     send(notificationData, correlationId) { (data, now) =>
       NotificationXmlBuilder.buildIE906ResponseXml(data, now, functionalErrors)
     }
 
   def send917Notification(
-    notificationData: AckNotification,
+    notificationData: NotificationData,
     correlationId:    String,
-    xmlErrors:        List[Elem]
+    xmlErrors:        NodeSeq
   )(implicit hc: HeaderCarrier): Future[HttpResponse] =
     send(notificationData, correlationId) { (data, now) =>
       NotificationXmlBuilder.buildIE917ResponseXml(data, now, xmlErrors)
     }
 
   private def send(
-    notificationData: AckNotification,
+    notificationData: NotificationData,
     correlationId:    String
   )(
-    buildXml: (AckNotification, String) => Elem
+    buildXml: (NotificationData, String) => Elem
   )(implicit hc: HeaderCarrier): Future[HttpResponse] = {
-    val currentDateTime = DateTime.now().toString("EEE, dd MMM yyyy HH:mm:ss z")
-    val xmlPayload      = NotificationXmlBuilder.xmlToString(buildXml(notificationData, currentDateTime))
+    val instantNow:      Instant = Instant.now(clock)
+    val httpDateTimeNow: String  = DateHelper.httpDateFormatter.format(instantNow)
+
+    val xmlPayload: Elem = buildXml(notificationData, httpDateTimeNow)
 
     logger.info(
-      s"Sending notification to $notificationUrl for recipient: ${notificationData.eori}, MRN: ${notificationData.mrn}, correlationId: $correlationId"
+      s"Sending notification to $notificationUrl for recipient: ${notificationData.eori}, " +
+        s"MRN: ${notificationData.mrn}, correlationId: $correlationId"
     )
 
     http

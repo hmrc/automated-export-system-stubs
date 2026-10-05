@@ -16,4 +16,6 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.models
 
-final case class AckNotification(eori: String, correlationId: String, mrn: String)
+enum ActionCode(val value: Int):
+  case Accepted extends ActionCode(1)
+  case Diversion extends ActionCode(5)

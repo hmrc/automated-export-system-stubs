@@ -16,31 +16,68 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.helpers.controllers
 
-import com.github.tomakehurst.wiremock.client.WireMock.{verify as wmVerify, *}
-import play.api.test.FakeRequest
+import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.client.{MappingBuilder, WireMock}
+import play.api.inject
+import play.api.inject.Binding
+import play.api.mvc.Result
+import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseISpec
+import uk.gov.hmrc.automatedexportsystemstubs.models.ActionCode
 
-import scala.xml.Elem
+import java.time.{Clock, Instant, ZoneOffset}
+import scala.concurrent.Future
+import scala.jdk.CollectionConverters.*
+import scala.xml.{Elem, NodeSeq}
+
 class MessageControllerISpec extends BaseISpec:
 
-  private val endpoint     = "/cds/aesIE507Request/v1"
-  private val validHeaders = Seq(
-    "Authorization"    -> "Bearer auth-token",
-    "x-correlation-id" -> "corr-2",
-    "accept"           -> "application/xml",
-    "content-type"     -> "application/xml",
-    "date"             -> "Fri, 31 Jul 2026 10:30:00 UTC",
-    "x-message-type"   -> "aesIE507Request",
-    "x-forwarded-host" -> "some-host"
-  )
+  trait Setup:
+    val endpoint: String = "/cds/aesIE507Request/v1"
+
+    val correlationId: String = "correlationId"
+    val eoriNumber:    String = "GB123456789000"
+
+    val mrn:                      String  = "26GB123456789ABCDEX9"
+    val notificationsBearerToken: String  = "notifications-token"
+    val instant:                  Instant = Instant.parse("2026-10-01T00:00:00.000Z")
+    val rfc1123DateTime:          String  = "Thu, 01 Oct 2026 00:00:00 UTC"
+
+    val validHeaders: Seq[(String, String)] = Seq(
+      "Authorization"    -> "Bearer token",
+      "x-correlation-id" -> correlationId,
+      "accept"           -> Helpers.XML,
+      "content-type"     -> Helpers.XML,
+      "date"             -> rfc1123DateTime,
+      "x-message-type"   -> "aesIE507Request",
+      "x-forwarded-host" -> "some-host"
+    )
+
+    def notificationPostRequestMappingBuilder(notificationPayloadXml: Elem): MappingBuilder =
+      post(urlEqualTo("/automated-export-system-notifications/notification"))
+        .withHeader("Authorization", equalTo(s"Bearer $notificationsBearerToken"))
+        .withHeader("Content-Type", equalTo(Helpers.XML))
+        .withHeader("X-Correlation-Id", equalTo(correlationId))
+        .withRequestBody(equalToXml(notificationPayloadXml.toString))
+  end Setup
+
+  object Setup extends Setup
+
+  override def config: Map[String, Any] =
+    super.config ++ Map("microservice.services.aes-notifications.bearer-token" -> Setup.notificationsBearerToken)
+
+  override def bindingOverrides: Seq[Binding[_]] =
+    super.bindingOverrides ++ Seq(
+      inject.bind[Clock].toInstance(Clock.fixed(Setup.instant, ZoneOffset.UTC))
+    )
 
   "POST /cds/aesIE507Request/v1" - {
 
-    "route exists" in {
+    "route exists" in new Setup {
       route(app, FakeRequest(POST, endpoint)).isDefined shouldBe true
     }
 
-    "returns 400 when no XML body" in {
+    "returns 400 when no XML body" in new Setup {
       val request = FakeRequest(POST, endpoint)
         .withHeaders(validHeaders*)
 
@@ -48,7 +85,7 @@ class MessageControllerISpec extends BaseISpec:
       status(result) shouldBe BAD_REQUEST
     }
 
-    "returns sync 401 when MRN ends with A0" in {
+    "returns sync 401 when MRN ends with A0" in new Setup {
       val body =
         """<AESDigitalNotification>
           |  <Header><messageSender>GB123</messageSender></Header>
@@ -66,7 +103,7 @@ class MessageControllerISpec extends BaseISpec:
 
     }
 
-    "returns sync 404 when MRN ends with A1" in {
+    "returns sync 404 when MRN ends with A1" in new Setup {
       val body =
         """<AESDigitalNotification>
           |  <Header><messageSender>GB123</messageSender></Header>
@@ -83,138 +120,429 @@ class MessageControllerISpec extends BaseISpec:
       status(result) shouldBe NOT_FOUND
     }
 
-    "returns 204 for async IE906 path (e.g. MRN ends B0 -> code 90 matched and forwarded)" in {
-      val body: Elem =
+    "returns 204 for async IE906 path (e.g. MRN ends B0 -> code 90 matched and forwarded)" in new Setup {
+      val IE906ErrorXml: Elem =
+        <FunctionalError>
+          <errorPointer>Body.ExportOperation.MRN</errorPointer>
+          <errorCode>90</errorCode>
+          <errorReason>ERR02</errorReason>
+          <originalAttributeValue>MRN-B0</originalAttributeValue>
+        </FunctionalError>
+
+      val requestXml: Elem =
         <AESDigitalNotification>
           <Header>
-            <messageSender>GB123</messageSender>
+            <messageSender>{eoriNumber}</messageSender>
           </Header>
           <Body>
             <ExportOperation>
-              <MRN>26GB123456789ABCDEB0</MRN>
-              </ExportOperation>
+              <MRN>MRN-B0</MRN>
+            </ExportOperation>
+          </Body>
+        </AESDigitalNotification>
+
+      val notificationPayloadIE906ErrorXml: Elem =
+        <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
+          <Header>
+            <messageSender>NECA.XI</messageSender>
+            <messageRecipient>{eoriNumber}</messageRecipient>
+            <preparationDateTime>{rfc1123DateTime}</preparationDateTime>
+            <messageIdentification>{correlationId}</messageIdentification>
+            <messageType>CD906C</messageType>
+            <correlationIdentifier>{correlationId}</correlationIdentifier>
+          </Header>
+          <Body>
+            <messageCode>CC507C</messageCode>
+            <MRN>MRN-B0</MRN>
+            {IE906ErrorXml}
           </Body>
         </AESDigitalNotification>
 
       stubFor(
-        post(urlEqualTo("/automated-export-system-notifications/notification"))
-          .willReturn(aResponse().withStatus(204))
+        notificationPostRequestMappingBuilder(notificationPayloadIE906ErrorXml)
+          .willReturn(
+            aResponse()
+              .withStatus(Helpers.NO_CONTENT)
+          )
       )
 
-      route(
-        app,
-        FakeRequest(POST, endpoint)
+      val request: FakeRequest[NodeSeq] =
+        FakeRequest(Helpers.POST, endpoint)
           .withHeaders(validHeaders*)
-          .withXmlBody(body)
-      ).value
-      val result = route(
-        app,
-        FakeRequest(POST, endpoint)
-          .withHeaders(validHeaders*)
-          .withXmlBody(body)
-      ).value
+          .withBody(requestXml)
 
-      status(result) shouldBe NO_CONTENT
-      eventually {
-        wmVerify(
-          moreThanOrExactly(1),
-          postRequestedFor(urlEqualTo("/automated-export-system-notifications/notification"))
-            .withHeader("x-correlation-id", equalTo("corr-2"))
-            .withHeader("Content-Type", containing("application/xml"))
-            .withRequestBody(containing("<messageType>CD906C</messageType>"))
-            .withRequestBody(containing("<FunctionalError>"))
-        )
-      }
+      val result: Future[Result] = Helpers.route(app, request).value
+
+      WireMock.findUnmatchedRequests().asScala
+
+      Helpers.status(result) shouldBe Helpers.NO_CONTENT
     }
 
-    "returns 204 for async IE917 path (e.g. office of exit reference number ends 000 -> code 12 matched and forwarded)" in {
-      val body: Elem =
+    "returns 204 for async IE917 path (e.g. office of exit reference number ends 000 -> code 12 matched and forwarded)" in new Setup {
+      val IE917ErrorXml: Elem =
+        <XmlError>
+          <errorPointer>Body.CustomsOfficeOExitActual.referenceNumber</errorPointer>
+          <errorCode>12</errorCode>
+          <errorText>ERR02</errorText>
+          <originalAttributeValue>some-reference-000</originalAttributeValue>
+        </XmlError>
+
+      val requestXml: Elem =
         <AESDigitalNotification>
           <Header>
-            <messageSender>GB123</messageSender>
+            <messageSender>{eoriNumber}</messageSender>
           </Header>
           <Body>
             <CustomsOfficeOExitActual>
               <referenceNumber>some-reference-000</referenceNumber>
             </CustomsOfficeOExitActual>
             <ExportOperation>
-              <MRN>26GB123456789ABCDE00</MRN>
+              <MRN>{mrn}</MRN>
             </ExportOperation>
           </Body>
         </AESDigitalNotification>
 
+      val notificationPayloadAcceptedXml: Elem =
+        <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
+          <Header>
+            <messageSender>NECA.XI</messageSender>
+            <messageRecipient>{eoriNumber}</messageRecipient>
+            <preparationDateTime>{rfc1123DateTime}</preparationDateTime>
+            <messageIdentification>{correlationId}</messageIdentification>
+            <messageType>CD917C</messageType>
+            <correlationIdentifier>{correlationId}</correlationIdentifier>
+          </Header>
+          <Body>
+            <messageCode>CC507C</messageCode>
+            <MRN>{mrn}</MRN>
+            {IE917ErrorXml}
+          </Body>
+        </AESDigitalNotification>
+
       stubFor(
-        post(urlEqualTo("/automated-export-system-notifications/notification"))
-          .willReturn(aResponse().withStatus(204))
+        notificationPostRequestMappingBuilder(notificationPayloadAcceptedXml)
+          .willReturn(
+            aResponse()
+              .withStatus(Helpers.NO_CONTENT)
+          )
       )
 
-      route(
-        app,
-        FakeRequest(POST, endpoint)
+      val request: FakeRequest[NodeSeq] =
+        FakeRequest(Helpers.POST, endpoint)
           .withHeaders(validHeaders*)
-          .withXmlBody(body)
-      ).value
-      val result = route(
-        app,
-        FakeRequest(POST, endpoint)
-          .withHeaders(validHeaders*)
-          .withXmlBody(body)
-      ).value
+          .withBody(requestXml)
 
-      status(result) shouldBe NO_CONTENT
-      eventually {
-        wmVerify(
-          moreThanOrExactly(1),
-          postRequestedFor(urlEqualTo("/automated-export-system-notifications/notification"))
-            .withHeader("x-correlation-id", equalTo("corr-2"))
-            .withHeader("Content-Type", containing("application/xml"))
-            .withRequestBody(containing("<messageType>CD917C</messageType>"))
-            .withRequestBody(containing("<XmlError>"))
-            .withRequestBody(containing("12"))
-        )
-      }
+      val result: Future[Result] = Helpers.route(app, request).value
+
+      WireMock.findUnmatchedRequests().asScala
+
+      Helpers.status(result) shouldBe Helpers.NO_CONTENT
     }
 
-    "returns 204 for normal ACK path when no sync/IE906 rule matches" in {
-      val body: Elem =
+    "returns 204 for normal ACK path when no sync/IE906 rule matches" in new Setup {
+      val requestXml: Elem =
         <AESDigitalNotification>
           <Header>
-            <messageSender>GB123</messageSender>
+            <messageSender>{eoriNumber}</messageSender>
           </Header>
           <Body>
             <ExportOperation>
-              <MRN>26GB123456789ABCDE00</MRN>
+              <MRN>{mrn}</MRN>
             </ExportOperation>
           </Body>
         </AESDigitalNotification>
 
+      val notificationPayloadAcceptedXml: Elem =
+        <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
+          <Header>
+            <messageSender>NECA.XI</messageSender>
+            <messageRecipient>{eoriNumber}</messageRecipient>
+            <preparationDateTime>{rfc1123DateTime}</preparationDateTime>
+            <messageIdentification>{correlationId}</messageIdentification>
+            <messageType>ACK</messageType>
+            <correlationIdentifier>{correlationId}</correlationIdentifier>
+          </Header>
+          <Body>
+            <messageCode>CC507C</messageCode>
+            <actionCode>{ActionCode.Accepted.value}</actionCode>
+            <MRN>{mrn}</MRN>
+          </Body>
+        </AESDigitalNotification>
+
       stubFor(
-        post(urlEqualTo("/automated-export-system-notifications/notification"))
-          .willReturn(aResponse().withStatus(204))
+        notificationPostRequestMappingBuilder(notificationPayloadAcceptedXml)
+          .willReturn(
+            aResponse()
+              .withStatus(Helpers.NO_CONTENT)
+          )
       )
 
-      route(
-        app,
-        FakeRequest(POST, endpoint)
+      val request: FakeRequest[NodeSeq] =
+        FakeRequest(Helpers.POST, endpoint)
           .withHeaders(validHeaders*)
-          .withXmlBody(body)
-      ).value
-      val result = route(
-        app,
-        FakeRequest(POST, endpoint)
-          .withHeaders(validHeaders*)
-          .withXmlBody(body)
-      ).value
+          .withBody(requestXml)
 
-      status(result) shouldBe NO_CONTENT
-      eventually {
-        wmVerify(
-          moreThanOrExactly(1),
-          postRequestedFor(urlEqualTo("/automated-export-system-notifications/notification"))
-            .withHeader("x-correlation-id", equalTo("corr-2"))
-            .withHeader("Content-Type", containing("application/xml"))
-            .withRequestBody(containing("<messageType>ACK</messageType>"))
+      val result: Future[Result] = Helpers.route(app, request).value
+
+      WireMock.findUnmatchedRequests().asScala
+
+      Helpers.status(result) shouldBe Helpers.NO_CONTENT
+    }
+
+    "returns 204 when ACK Diversion" - {
+
+      "and followed by an ACK Accepted" in new Setup {
+        val requestXml: Elem =
+          <AESDigitalNotification>
+            <Header>
+              <messageSender>{eoriNumber}</messageSender>
+            </Header>
+            <Body>
+              <MRN>{mrn}</MRN>
+              <GoodsShipment>
+                <Consignment>
+                  <parentUCRID>ACKDIVERSIONBB</parentUCRID>
+                </Consignment>
+              </GoodsShipment>
+            </Body>
+          </AESDigitalNotification>
+
+        val notificationPayloadDiversionXml: Elem =
+          <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
+            <Header>
+              <messageSender>NECA.XI</messageSender>
+              <messageRecipient>{eoriNumber}</messageRecipient>
+              <preparationDateTime>{rfc1123DateTime}</preparationDateTime>
+              <messageIdentification>{correlationId}</messageIdentification>
+              <messageType>ACK</messageType>
+              <correlationIdentifier>{correlationId}</correlationIdentifier>
+            </Header>
+            <Body>
+              <messageCode>CC507C</messageCode>
+              <actionCode>{ActionCode.Diversion.value}</actionCode>
+              <MRN>{mrn}</MRN>
+            </Body>
+          </AESDigitalNotification>
+
+        stubFor(
+          notificationPostRequestMappingBuilder(notificationPayloadDiversionXml)
+            .willReturn(
+              aResponse()
+                .withStatus(Helpers.NO_CONTENT)
+            )
         )
+
+        val notificationPayloadAcceptedXml: Elem =
+          <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
+            <Header>
+              <messageSender>NECA.XI</messageSender>
+              <messageRecipient>{eoriNumber}</messageRecipient>
+              <preparationDateTime>{rfc1123DateTime}</preparationDateTime>
+              <messageIdentification>{correlationId}</messageIdentification>
+              <messageType>ACK</messageType>
+              <correlationIdentifier>{correlationId}</correlationIdentifier>
+            </Header>
+            <Body>
+              <messageCode>CC507C</messageCode>
+              <actionCode>{ActionCode.Accepted.value}</actionCode>
+              <MRN>{mrn}</MRN>
+            </Body>
+          </AESDigitalNotification>
+
+        stubFor(
+          notificationPostRequestMappingBuilder(notificationPayloadAcceptedXml)
+            .willReturn(
+              aResponse()
+                .withStatus(Helpers.NO_CONTENT)
+            )
+        )
+
+        val request: FakeRequest[NodeSeq] =
+          FakeRequest(Helpers.POST, endpoint)
+            .withHeaders(validHeaders*)
+            .withBody(requestXml)
+
+        val result: Future[Result] = Helpers.route(app, request).value
+
+        WireMock.findUnmatchedRequests().asScala
+
+        Helpers.status(result) shouldBe Helpers.NO_CONTENT
+      }
+
+      "and followed by an IE917 error" in new Setup {
+        val IE917ErrorXml: Elem =
+          <XmlError>
+            <errorPointer>Body.CustomsOfficeOExitActual.referenceNumber</errorPointer>
+            <errorCode>12</errorCode>
+            <errorText>ERR02</errorText>
+            <originalAttributeValue>XMLERROR000</originalAttributeValue>
+          </XmlError>
+
+        val requestXml: Elem =
+          <AESDigitalNotification>
+            <Header>
+              <messageSender>{eoriNumber}</messageSender>
+            </Header>
+            <Body>
+              <MRN>{mrn}</MRN>
+              <CustomsOfficeOExitActual>
+                <referenceNumber>XMLERROR000</referenceNumber>
+              </CustomsOfficeOExitActual>
+              <GoodsShipment>
+                <Consignment>
+                  <parentUCRID>ACKDIVERSIONBB</parentUCRID>
+                </Consignment>
+              </GoodsShipment>
+            </Body>
+          </AESDigitalNotification>
+
+        val notificationPayloadDiversionXml: Elem =
+          <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
+            <Header>
+              <messageSender>NECA.XI</messageSender>
+              <messageRecipient>{eoriNumber}</messageRecipient>
+              <preparationDateTime>{rfc1123DateTime}</preparationDateTime>
+              <messageIdentification>{correlationId}</messageIdentification>
+              <messageType>ACK</messageType>
+              <correlationIdentifier>{correlationId}</correlationIdentifier>
+            </Header>
+            <Body>
+              <messageCode>CC507C</messageCode>
+              <actionCode>{ActionCode.Diversion.value}</actionCode>
+              <MRN>{mrn}</MRN>
+            </Body>
+          </AESDigitalNotification>
+
+        stubFor(
+          notificationPostRequestMappingBuilder(notificationPayloadDiversionXml)
+            .willReturn(
+              aResponse()
+                .withStatus(Helpers.NO_CONTENT)
+            )
+        )
+
+        val notificationPayloadIE917ErrorXml: Elem =
+          <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
+            <Header>
+              <messageSender>NECA.XI</messageSender>
+              <messageRecipient>{eoriNumber}</messageRecipient>
+              <preparationDateTime>{rfc1123DateTime}</preparationDateTime>
+              <messageIdentification>{correlationId}</messageIdentification>
+              <messageType>CD917C</messageType>
+              <correlationIdentifier>{correlationId}</correlationIdentifier>
+            </Header>
+            <Body>
+              <messageCode>CC507C</messageCode>
+              <MRN>{mrn}</MRN>
+              {IE917ErrorXml}
+            </Body>
+          </AESDigitalNotification>
+
+        stubFor(
+          notificationPostRequestMappingBuilder(notificationPayloadIE917ErrorXml)
+            .willReturn(
+              aResponse()
+                .withStatus(Helpers.NO_CONTENT)
+            )
+        )
+
+        val request: FakeRequest[NodeSeq] =
+          FakeRequest(Helpers.POST, endpoint)
+            .withHeaders(validHeaders*)
+            .withBody(requestXml)
+
+        val result: Future[Result] = Helpers.route(app, request).value
+
+        WireMock.findUnmatchedRequests().asScala
+
+        Helpers.status(result) shouldBe Helpers.NO_CONTENT
+      }
+
+      "and followed by an IE906 error" in new Setup {
+        val IE906ErrorXml: Elem =
+          <FunctionalError>
+            <errorPointer>Body.GoodsShipment.Consignment.ReferenceNumberUCRID</errorPointer>
+            <errorCode>8</errorCode>
+            <errorReason>ERR02</errorReason>
+            <originalAttributeValue>FUNCTIONALERROR000</originalAttributeValue>
+          </FunctionalError>
+
+        val requestXml: Elem =
+          <AESDigitalNotification>
+            <Header>
+              <messageSender>{eoriNumber}</messageSender>
+            </Header>
+            <Body>
+              <MRN>{mrn}</MRN>
+              <GoodsShipment>
+                <Consignment>
+                  <ReferenceNumberUCRID>FUNCTIONALERROR000</ReferenceNumberUCRID>
+                  <parentUCRID>ACKDIVERSIONBB</parentUCRID>
+                </Consignment>
+              </GoodsShipment>
+            </Body>
+          </AESDigitalNotification>
+
+        val notificationPayloadDiversionXml: Elem =
+          <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
+            <Header>
+              <messageSender>NECA.XI</messageSender>
+              <messageRecipient>{eoriNumber}</messageRecipient>
+              <preparationDateTime>{rfc1123DateTime}</preparationDateTime>
+              <messageIdentification>{correlationId}</messageIdentification>
+              <messageType>ACK</messageType>
+              <correlationIdentifier>{correlationId}</correlationIdentifier>
+            </Header>
+            <Body>
+              <messageCode>CC507C</messageCode>
+              <actionCode>{ActionCode.Diversion.value}</actionCode>
+              <MRN>{mrn}</MRN>
+            </Body>
+          </AESDigitalNotification>
+
+        stubFor(
+          notificationPostRequestMappingBuilder(notificationPayloadDiversionXml)
+            .willReturn(
+              aResponse()
+                .withStatus(Helpers.NO_CONTENT)
+            )
+        )
+
+        val notificationPayloadIE916ErrorXml: Elem =
+          <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
+            <Header>
+              <messageSender>NECA.XI</messageSender>
+              <messageRecipient>{eoriNumber}</messageRecipient>
+              <preparationDateTime>{rfc1123DateTime}</preparationDateTime>
+              <messageIdentification>{correlationId}</messageIdentification>
+              <messageType>CD906C</messageType>
+              <correlationIdentifier>{correlationId}</correlationIdentifier>
+            </Header>
+            <Body>
+              <messageCode>CC507C</messageCode>
+              <MRN>{mrn}</MRN>
+              {IE906ErrorXml}
+            </Body>
+          </AESDigitalNotification>
+
+        stubFor(
+          notificationPostRequestMappingBuilder(notificationPayloadIE916ErrorXml)
+            .willReturn(
+              aResponse()
+                .withStatus(Helpers.NO_CONTENT)
+            )
+        )
+
+        val request: FakeRequest[NodeSeq] =
+          FakeRequest(Helpers.POST, endpoint)
+            .withHeaders(validHeaders*)
+            .withBody(requestXml)
+
+        val result: Future[Result] = Helpers.route(app, request).value
+
+        WireMock.findUnmatchedRequests().asScala
+
+        Helpers.status(result) shouldBe Helpers.NO_CONTENT
       }
     }
   }

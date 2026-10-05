@@ -16,18 +16,20 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.controllers
 
-import play.api.http.Status
-import play.api.mvc.BodyParsers
-import play.api.test.Helpers.*
-import play.api.test.Helpers
-import org.mockito.ArgumentMatchers.*
-import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
-import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, TestData}
+import org.apache.pekko.util.ByteString
+import org.mockito.ArgumentMatchers.{eq as eqTo, *}
 import org.mockito.Mockito.when
-import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
+import play.api.http.Status
+import play.api.mvc.{AnyContentAsXml, BodyParsers, ControllerComponents, Result}
+import play.api.test.Helpers.*
+import play.api.test.{FakeRequest, Helpers}
+import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, TestData, XmlOps}
+import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import scala.concurrent.Future
+import scala.xml.Elem
 
 class MessageControllerSpec extends BaseSpec with AllMocks:
 
@@ -35,41 +37,261 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
     (xml \\ name).text
 
   trait Setup:
-    val requiredHeaders = Map("some-header" -> "header-val", "another-header" -> "another")
-    when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
-    when(mockNotificationService.sendAckNotification(any[AckNotification], any[String])(any[HeaderCarrier]))
-      .thenReturn(Future.successful(mock[HttpResponse]))
-    private val cc             = stubControllerComponents()
-    private val bodyParsers    = new BodyParsers.Default(cc.parsers)
-    val validatedRequestAction = ValidatedRequestAction(bodyParsers, mockAppConfig)
+    val requiredHeaders: Map[String, String] =
+      Map("some-header" -> "header-val", "another-header" -> "another")
 
-    val controller = new MessageController(Helpers.stubControllerComponents(), mockNotificationService, validatedRequestAction)
+    when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
+
+    val eoriNumber:    String = "GB123456789000"
+    val mrn:           String = "26GB123456789ABCDEX9"
+    val correlationId: String = "correlationId"
+
+    private val cc:             ControllerComponents   = stubControllerComponents()
+    private val bodyParsers:    BodyParsers.Default    = new BodyParsers.Default(cc.parsers)
+    val validatedRequestAction: ValidatedRequestAction = ValidatedRequestAction(bodyParsers, mockAppConfig)
+
+    val controller: MessageController =
+      new MessageController(
+        Helpers.stubControllerComponents(),
+        mockNotificationService,
+        validatedRequestAction
+      )
 
   "POST /" - {
 
-    "return 204 when all required headers are provided" in new Setup:
-      val xmlBody =
-        <AESDigitalNotification>
-          <Header>
-            <messageSender>GB123456789000</messageSender>
-          </Header>
-          <Body>
-            <MRN>26GB123456789ABCDEX9</MRN>
-          </Body>
-        </AESDigitalNotification>
+    "should return a 204 response" - {
 
-      val requestWithHeaders = fakeRequest
-        .withHeaders(requiredHeaders.toSeq: _*)
-        .withXmlBody(xmlBody)
+      "when the response is ACK Accepted" in new Setup {
+        val notificationData: NotificationData =
+          NotificationData(
+            eori = eoriNumber,
+            correlationId = correlationId,
+            mrn = mrn
+          )
 
-      val result = controller.message()(requestWithHeaders)
+        when(
+          mockNotificationService.sendAckNotification(
+            eqTo(notificationData),
+            eqTo(ActionCode.Accepted),
+            eqTo(correlationId)
+          )(any[HeaderCarrier])
+        )
+          .thenReturn(Future.successful(mock[HttpResponse]))
 
-      status(result) shouldBe Status.NO_CONTENT
+        val xmlBody: Elem =
+          <AESDigitalNotification>
+            <Header>
+              <messageSender>{eoriNumber}</messageSender>
+            </Header>
+            <Body>
+              <MRN>{mrn}</MRN>
+            </Body>
+          </AESDigitalNotification>
 
-    "return 400 when required headers are missing" in new Setup:
+        val requestWithHeaders: FakeRequest[AnyContentAsXml] =
+          fakeRequest
+            .withHeaders(requiredHeaders.toSeq: _*)
+            .withHeaders("x-correlation-id" -> correlationId)
+            .withXmlBody(xmlBody)
+
+        val result: Future[Result] = controller.message()(requestWithHeaders)
+
+        status(result)         shouldBe Status.NO_CONTENT
+        contentType(result)    shouldBe None
+        contentAsBytes(result) shouldBe ByteString.empty
+      }
+
+      "when the response is ACK Diversion" - {
+
+        "followed by an ACK Accepted" in new Setup {
+          val notificationData: NotificationData =
+            NotificationData(
+              eori = eoriNumber,
+              correlationId = correlationId,
+              mrn = mrn
+            )
+
+          when(
+            mockNotificationService.sendAckNotification(
+              eqTo(notificationData),
+              eqTo(ActionCode.Diversion),
+              eqTo(correlationId)
+            )(any[HeaderCarrier])
+          )
+            .thenReturn(Future.successful(mock[HttpResponse]))
+
+          when(
+            mockNotificationService.sendAckNotification(
+              eqTo(notificationData),
+              eqTo(ActionCode.Accepted),
+              eqTo(correlationId)
+            )(any[HeaderCarrier])
+          )
+            .thenReturn(Future.successful(mock[HttpResponse]))
+
+          val xmlBody: Elem =
+            <AESDigitalNotification>
+              <Header>
+                <messageSender>{eoriNumber}</messageSender>
+              </Header>
+              <Body>
+                <MRN>{mrn}</MRN>
+                <GoodsShipment>
+                  <Consignment>
+                    <parentUCRID>ACKDIVERSIONBB</parentUCRID>
+                  </Consignment>
+                </GoodsShipment>
+              </Body>
+            </AESDigitalNotification>
+
+          val requestWithHeaders: FakeRequest[AnyContentAsXml] =
+            fakeRequest
+              .withHeaders(requiredHeaders.toSeq: _*)
+              .withHeaders("x-correlation-id" -> correlationId)
+              .withXmlBody(xmlBody)
+
+          val result: Future[Result] = controller.message()(requestWithHeaders)
+
+          status(result)         shouldBe Status.NO_CONTENT
+          contentType(result)    shouldBe None
+          contentAsBytes(result) shouldBe ByteString.empty
+        }
+
+        "followed by an IE917 error" in new Setup {
+          val notificationData: NotificationData =
+            NotificationData(
+              eori = eoriNumber,
+              correlationId = correlationId,
+              mrn = mrn
+            )
+
+          when(
+            mockNotificationService.sendAckNotification(
+              eqTo(notificationData),
+              eqTo(ActionCode.Diversion),
+              eqTo(correlationId)
+            )(any[HeaderCarrier])
+          )
+            .thenReturn(Future.successful(mock[HttpResponse]))
+
+          val IE917ErrorXml: Elem =
+            <XmlError>
+              <errorPointer>Body.CustomsOfficeOExitActual.referenceNumber</errorPointer>
+              <errorCode>12</errorCode>
+              <errorText>ERR02</errorText>
+              <originalAttributeValue>XMLERROR000</originalAttributeValue>
+            </XmlError>
+
+          when(
+            mockNotificationService.sendIE917Notification(
+              eqTo(notificationData),
+              eqTo(correlationId),
+              argThat(xml => XmlOps.normalize(xml) == XmlOps.normalize(IE917ErrorXml))
+            )(any[HeaderCarrier])
+          )
+            .thenReturn(Future.successful(mock[HttpResponse]))
+
+          val xmlBody: Elem =
+            <AESDigitalNotification>
+              <Header>
+                <messageSender>{eoriNumber}</messageSender>
+              </Header>
+              <Body>
+                <MRN>{mrn}</MRN>
+                <CustomsOfficeOExitActual>
+                  <referenceNumber>XMLERROR000</referenceNumber>
+                </CustomsOfficeOExitActual>
+                <GoodsShipment>
+                  <Consignment>
+                    <parentUCRID>ACKDIVERSIONBB</parentUCRID>
+                  </Consignment>
+                </GoodsShipment>
+              </Body>
+            </AESDigitalNotification>
+
+          val requestWithHeaders: FakeRequest[AnyContentAsXml] =
+            fakeRequest
+              .withHeaders(requiredHeaders.toSeq: _*)
+              .withHeaders("x-correlation-id" -> correlationId)
+              .withXmlBody(xmlBody)
+
+          val result: Future[Result] = controller.message()(requestWithHeaders)
+
+          status(result)         shouldBe Status.NO_CONTENT
+          contentType(result)    shouldBe None
+          contentAsBytes(result) shouldBe ByteString.empty
+        }
+
+        "followed by an IE906 error" in new Setup {
+          val notificationData: NotificationData =
+            NotificationData(
+              eori = eoriNumber,
+              correlationId = correlationId,
+              mrn = mrn
+            )
+
+          when(
+            mockNotificationService.sendAckNotification(
+              eqTo(notificationData),
+              eqTo(ActionCode.Diversion),
+              eqTo(correlationId)
+            )(any[HeaderCarrier])
+          )
+            .thenReturn(Future.successful(mock[HttpResponse]))
+
+          val IE906ErrorXml: Elem =
+            <FunctionalError>
+              <errorPointer>Body.GoodsShipment.Consignment.ReferenceNumberUCRID</errorPointer>
+              <errorCode>8</errorCode>
+              <errorReason>ERR02</errorReason>
+              <originalAttributeValue>FUNCTIONALERROR000</originalAttributeValue>
+            </FunctionalError>
+
+          when(
+            mockNotificationService.sendIE906Notification(
+              eqTo(notificationData),
+              eqTo(correlationId),
+              argThat(xml => XmlOps.normalize(xml) == XmlOps.normalize(IE906ErrorXml))
+            )(any[HeaderCarrier])
+          )
+            .thenReturn(Future.successful(mock[HttpResponse]))
+
+          val xmlBody: Elem =
+            <AESDigitalNotification>
+              <Header>
+                <messageSender>{eoriNumber}</messageSender>
+              </Header>
+              <Body>
+                <MRN>{mrn}</MRN>
+                <GoodsShipment>
+                  <Consignment>
+                    <ReferenceNumberUCRID>FUNCTIONALERROR000</ReferenceNumberUCRID>
+                    <parentUCRID>ACKDIVERSIONBB</parentUCRID>
+                  </Consignment>
+                </GoodsShipment>
+              </Body>
+            </AESDigitalNotification>
+
+          val requestWithHeaders: FakeRequest[AnyContentAsXml] =
+            fakeRequest
+              .withHeaders(requiredHeaders.toSeq: _*)
+              .withHeaders("x-correlation-id" -> correlationId)
+              .withXmlBody(xmlBody)
+
+          val result: Future[Result] = controller.message()(requestWithHeaders)
+
+          status(result)         shouldBe Status.NO_CONTENT
+          contentType(result)    shouldBe None
+          contentAsBytes(result) shouldBe ByteString.empty
+        }
+      }
+    }
+
+    "return 400 when required headers are missing" in new Setup {
       val requestWithHeaders = fakeRequest.withHeaders(("some-header", "header-val"), ("another-header", "another"))
       val result             = controller.message()(requestWithHeaders)
       status(result) shouldBe Status.BAD_REQUEST
+    }
   }
 
   trait MrnSetup:
@@ -84,9 +306,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
     )
     when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
     val validatedRequestAction = ValidatedRequestAction(mock[BodyParsers.Default], mockAppConfig)
-    when(mockNotificationService.sendAckNotification(any[AckNotification], any[String])(any[HeaderCarrier]))
-      .thenReturn(Future.successful(mock[HttpResponse]))
-    val controller = new MessageController(Helpers.stubControllerComponents(), mockNotificationService, validatedRequestAction)
+    val controller             = new MessageController(Helpers.stubControllerComponents(), mockNotificationService, validatedRequestAction)
 
   "MRN error responses" - {
     "return correct XML error response when MRN ends in A0" in new MrnSetup:

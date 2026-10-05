@@ -14,13 +14,6 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.errors.IE917
+package uk.gov.hmrc.automatedexportsystemstubs.models
 
-import scala.xml.Elem
-
-final case class XmlRule(
-  code:           String,
-  elementPath:    String,
-  valueExtractor: Elem => Option[String],
-  matches:        String => Boolean
-)
+final case class NotificationData(eori: String, correlationId: String, mrn: String)

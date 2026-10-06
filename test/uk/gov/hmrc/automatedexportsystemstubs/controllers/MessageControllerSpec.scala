@@ -20,13 +20,13 @@ import org.apache.pekko.util.ByteString
 import org.mockito.ArgumentMatchers.{eq as eqTo, *}
 import org.mockito.Mockito.when
 import play.api.http.Status
-import play.api.mvc.{AnyContentAsXml, BodyParsers, ControllerComponents, Result}
+import play.api.mvc.{AnyContentAsXml, BodyParsers, Result}
 import play.api.test.Helpers.*
 import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, TestData, XmlOps}
 import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
+import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.Future
 import scala.xml.Elem

@@ -25,7 +25,6 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.xml.Elem
 import scala.xml.NodeSeq
 
 @Singleton
@@ -44,6 +43,7 @@ class NotificationService @Inject() (
     scheduleNotification("ACK", correlationId) {
       notificationConnector.sendNotification(
         notification,
+        actionCode,
         correlationId
       )
     }
@@ -51,7 +51,7 @@ class NotificationService @Inject() (
   def sendIE906Notification(
     notification:  NotificationData,
     correlationId: String,
-    errors:        List[Elem]
+    errors:        NodeSeq
   )(implicit hc: HeaderCarrier): Future[Unit] =
     scheduleNotification("IE906", correlationId) {
       notificationConnector.send906Notification(
@@ -64,7 +64,7 @@ class NotificationService @Inject() (
   def sendIE917Notification(
     notification:  NotificationData,
     correlationId: String,
-    errors:        List[Elem]
+    errors:        NodeSeq
   )(implicit hc: HeaderCarrier): Future[Unit] =
     scheduleNotification("IE917", correlationId) {
       notificationConnector.send917Notification(

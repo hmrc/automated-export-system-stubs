@@ -24,10 +24,6 @@ import play.api.mvc.{AnyContentAsXml, BodyParsers, ControllerComponents, Result}
 import play.api.test.Helpers.*
 import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
-import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, TestData}
-import org.mockito.Mockito.when
-import uk.gov.hmrc.automatedexportsystemstubs.models.AckNotification
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, TestData, XmlOps}
 import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse}
@@ -45,8 +41,14 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       Map("some-header" -> "header-val", "another-header" -> "another")
 
     when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
-    when(mockNotificationService.sendAckNotification(any[AckNotification], any[String])(any[HeaderCarrier]))
-      .thenReturn(Future.successful(()))
+    when(
+      mockNotificationService.sendAckNotification(
+        any[NotificationData],
+        any[ActionCode],
+        any[String]
+      )(any[HeaderCarrier])
+    ).thenReturn(Future.successful(()))
+
     private val cc             = stubControllerComponents()
     private val bodyParsers    = new BodyParsers.Default(cc.parsers)
     val validatedRequestAction = ValidatedRequestAction(bodyParsers, mockAppConfig)
@@ -54,10 +56,6 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
     val eoriNumber:    String = "GB123456789000"
     val mrn:           String = "26GB123456789ABCDEX9"
     val correlationId: String = "correlationId"
-
-    private val cc:             ControllerComponents   = stubControllerComponents()
-    private val bodyParsers:    BodyParsers.Default    = new BodyParsers.Default(cc.parsers)
-    val validatedRequestAction: ValidatedRequestAction = ValidatedRequestAction(bodyParsers, mockAppConfig)
 
     val controller: MessageController =
       new MessageController(
@@ -85,7 +83,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
             eqTo(correlationId)
           )(any[HeaderCarrier])
         )
-          .thenReturn(Future.successful(mock[HttpResponse]))
+          .thenReturn(Future.successful(()))
 
         val xmlBody: Elem =
           <AESDigitalNotification>
@@ -127,7 +125,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
               eqTo(correlationId)
             )(any[HeaderCarrier])
           )
-            .thenReturn(Future.successful(mock[HttpResponse]))
+            .thenReturn(Future.successful(()))
 
           when(
             mockNotificationService.sendAckNotification(
@@ -136,7 +134,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
               eqTo(correlationId)
             )(any[HeaderCarrier])
           )
-            .thenReturn(Future.successful(mock[HttpResponse]))
+            .thenReturn(Future.successful(()))
 
           val xmlBody: Elem =
             <AESDigitalNotification>
@@ -181,7 +179,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
               eqTo(correlationId)
             )(any[HeaderCarrier])
           )
-            .thenReturn(Future.successful(mock[HttpResponse]))
+            .thenReturn(Future.successful(()))
 
           val IE917ErrorXml: Elem =
             <XmlError>
@@ -198,7 +196,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
               argThat(xml => XmlOps.normalize(xml) == XmlOps.normalize(IE917ErrorXml))
             )(any[HeaderCarrier])
           )
-            .thenReturn(Future.successful(mock[HttpResponse]))
+            .thenReturn(Future.successful(()))
 
           val xmlBody: Elem =
             <AESDigitalNotification>
@@ -246,7 +244,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
               eqTo(correlationId)
             )(any[HeaderCarrier])
           )
-            .thenReturn(Future.successful(mock[HttpResponse]))
+            .thenReturn(Future.successful(()))
 
           val IE906ErrorXml: Elem =
             <FunctionalError>
@@ -263,7 +261,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
               argThat(xml => XmlOps.normalize(xml) == XmlOps.normalize(IE906ErrorXml))
             )(any[HeaderCarrier])
           )
-            .thenReturn(Future.successful(mock[HttpResponse]))
+            .thenReturn(Future.successful(()))
 
           val xmlBody: Elem =
             <AESDigitalNotification>
@@ -315,8 +313,13 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
     )
     when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
     val validatedRequestAction = ValidatedRequestAction(mock[BodyParsers.Default], mockAppConfig)
-    when(mockNotificationService.sendAckNotification(any[AckNotification], any[String])(any[HeaderCarrier]))
-      .thenReturn(Future.successful(()))
+    when(
+      mockNotificationService.sendAckNotification(
+        any[NotificationData],
+        any[ActionCode],
+        any[String]
+      )(any[HeaderCarrier])
+    ).thenReturn(Future.successful(()))
     val controller = new MessageController(Helpers.stubControllerComponents(), mockNotificationService, validatedRequestAction)
 
   "MRN error responses" - {

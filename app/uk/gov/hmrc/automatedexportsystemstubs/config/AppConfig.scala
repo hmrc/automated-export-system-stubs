@@ -18,10 +18,14 @@ package uk.gov.hmrc.automatedexportsystemstubs.config
 
 import javax.inject.{Inject, Singleton}
 import play.api.Configuration
+import scala.concurrent.duration.FiniteDuration
 
 @Singleton
 class AppConfig @Inject() (config: Configuration):
 
-  val appName:           String              = config.get[String]("appName")
-  val requiredHeaders:   Map[String, String] = config.get[Map[String, String]]("mandatory-headers")
-  val notificationToken: String              = config.get[String]("microservice.services.aes-notifications.bearer-token")
+  val appName:                    String              = config.get[String]("appName")
+  val requiredHeaders:            Map[String, String] = config.get[Map[String, String]]("mandatory-headers")
+  val notificationToken:          String              = config.get[String]("microservice.services.aes-notifications.bearer-token")
+  val notificationDelay:          FiniteDuration      = config.get[FiniteDuration]("microservice.services.aes-notifications.notification-delay")
+  val diversionNotificationDelay: FiniteDuration      =
+    config.get[FiniteDuration]("microservice.services.aes-notifications.diversion-notification-delay")

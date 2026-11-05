@@ -58,7 +58,7 @@ object XmlRequestBodyPaths:
     "Body/GoodsShipment/Consignment/LocationOfGoods/additionalIdentifier"
 
   val goodsMeasureGrossMass: String =
-    "Body/GoodsItem/Commodity/GoodsMeasure/grossMass"
+    "Body/GoodsShipment/GoodsItem/Commodity/GoodsMeasure/grossMass"
 
   val goodsMeasureNetMass: String =
-    "Body/GoodsItem/Commodity/GoodsMeasure/netMass"
+    "Body/GoodsShipment/GoodsItem/Commodity/GoodsMeasure/netMass"

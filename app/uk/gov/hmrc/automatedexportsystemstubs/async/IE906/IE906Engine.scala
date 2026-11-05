@@ -16,17 +16,17 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.async.IE906
 
-import uk.gov.hmrc.automatedexportsystemstubs.async.IE906.IE906Rules.all
-
 import scala.xml.{Elem, NodeSeq}
 
 object IE906Engine:
   final case class MatchResult(code: String, pointer: String, originalValue: String)
 
   def allMatches(xml: NodeSeq): Seq[MatchResult] =
-    all.flatMap { rule =>
-      rule.extractor.extract(xml).filter(rule.matches).map(v => MatchResult(rule.code, rule.extractor.path, v))
-    }
+    IE906Rule.all.flatMap(rule =>
+      rule
+        .check(xml)
+        .map(traversed => MatchResult(rule.code, traversed.path.toString, traversed.value))
+    )
 
   def toFunctionalError(m: MatchResult): Elem =
     <FunctionalError>

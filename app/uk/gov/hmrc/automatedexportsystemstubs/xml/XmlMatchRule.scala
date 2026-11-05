@@ -14,12 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.automatedexportsystemstubs.async.IE917
+package uk.gov.hmrc.automatedexportsystemstubs.xml
 
-import uk.gov.hmrc.automatedexportsystemstubs.utils.XmlRequestBodyExtractor
+import scala.xml.{Node, NodeSeq}
 
-final case class XmlRule(
-  code:      String,
-  extractor: XmlRequestBodyExtractor,
-  matches:   String => Boolean
-)
+abstract class XmlMatchRule[T](
+  path:    String,
+  matches: T => Boolean,
+  parse:   Node => T
+):
+  def check(xml: NodeSeq): Seq[XmlTraversedValue[T]] =
+    XmlTraverse
+      .findAll(xml, path, parse)
+      .filter(traversed => matches(traversed.value))

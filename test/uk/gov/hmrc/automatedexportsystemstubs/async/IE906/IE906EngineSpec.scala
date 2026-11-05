@@ -16,53 +16,81 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.async.IE906
 
-import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.{BaseSpec, XmlOps}
 
 import scala.xml.Elem
 
 class IE906EngineSpec extends BaseSpec:
   "IE906Engine.toXml" - {
+
     "build one error node " in {
       val m = IE906Engine.MatchResult("90", "/Body/MRN", "26GB123456789ABCDEB0")
 
-      val xml = IE906Engine.toFunctionalError(m)
+      val functionalError: Elem =
+        <FunctionalError>
+          <errorPointer>/Body/MRN</errorPointer>
+          <errorCode>90</errorCode>
+          <errorReason>ERR02</errorReason>
+          <originalAttributeValue>26GB123456789ABCDEB0</originalAttributeValue>
+        </FunctionalError>
 
-      (xml \ "errorPointer").text           shouldBe "/Body/MRN"
-      (xml \ "errorCode").text              shouldBe "90"
-      (xml \ "errorReason").text            shouldBe "ERR02"
-      (xml \ "originalAttributeValue").text shouldBe "26GB123456789ABCDEB0"
+      val xml: Elem = IE906Engine.toFunctionalError(m)
+
+      XmlOps.normalize(xml) shouldBe XmlOps.normalize(functionalError)
     }
 
     "IE906Engine.allMatches -> toFunctionalError" - {
+
       "create multiple XMLError nodes when multiple rules match" in {
         val input: Elem =
-          <AESDigitalNotification>
+          <CC507C>
             <Body>
-              <ExportOperation><MRN>26GB123456789ABCDEB0</MRN></ExportOperation>
-              <GoodsShipment><Consignment><ReferenceNumberUCRID>XXX001</ReferenceNumberUCRID></Consignment></GoodsShipment>
+              <ExportOperation>
+                <MRN>26GB123456789ABCDEB0</MRN>
+              </ExportOperation>
+              <GoodsShipment>
+                <Consignment>
+                  <ReferenceNumberUCRID>XXX001</ReferenceNumberUCRID>
+                </Consignment>
+              </GoodsShipment>
             </Body>
-          </AESDigitalNotification>
+          </CC507C>
+
+        val functionalError1: Elem =
+          <FunctionalError>
+            <errorPointer>/CC507C/Body/ExportOperation/MRN</errorPointer>
+            <errorCode>90</errorCode>
+            <errorReason>ERR02</errorReason>
+            <originalAttributeValue>26GB123456789ABCDEB0</originalAttributeValue>
+          </FunctionalError>
+
+        val functionalError2: Elem =
+          <FunctionalError>
+            <errorPointer>/CC507C/Body/GoodsShipment/Consignment/ReferenceNumberUCRID</errorPointer>
+            <errorCode>96</errorCode>
+            <errorReason>ERR02</errorReason>
+            <originalAttributeValue>XXX001</originalAttributeValue>
+          </FunctionalError>
+
+        val functionalErrors: Seq[Elem] = Seq(functionalError1, functionalError2)
 
         val errors: Seq[Elem] =
           IE906Engine.allMatches(input).map(IE906Engine.toFunctionalError)
 
-        errors.size shouldBe 2
-
-        val codes = errors.map(e => (e \ "errorCode").text)
-        codes should contain("90")
-        codes should contain("96")
+        errors.map(XmlOps.normalize) shouldBe functionalErrors.map(XmlOps.normalize)
       }
 
       "return no XMLError nodes when no rules match" in {
         val input: Elem =
-          <AESDigitalNotification>
+          <CC507C>
             <Body>
               <MRN>26GB123456789ABCDE00</MRN>
             </Body>
-          </AESDigitalNotification>
+          </CC507C>
 
-        val errors = IE906Engine.allMatches(input).map(IE906Engine.toFunctionalError)
-        errors shouldBe empty
+        val errors: Seq[Elem] = IE906Engine.allMatches(input).map(IE906Engine.toFunctionalError)
+
+        errors shouldBe Nil
       }
     }
 

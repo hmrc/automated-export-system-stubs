@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.helpers.controllers
 
+import com.github.tomakehurst.wiremock.client.MappingBuilder
 import com.github.tomakehurst.wiremock.client.WireMock.*
-import com.github.tomakehurst.wiremock.client.{MappingBuilder, WireMock}
+import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder
 import play.api.inject
 import play.api.inject.Binding
 import play.api.mvc.Result
@@ -27,7 +28,6 @@ import uk.gov.hmrc.automatedexportsystemstubs.models.ActionCode
 
 import java.time.{Clock, Instant, ZoneOffset}
 import scala.concurrent.Future
-import scala.jdk.CollectionConverters.*
 import scala.xml.{Elem, NodeSeq}
 
 class MessageControllerISpec extends BaseISpec:
@@ -53,8 +53,11 @@ class MessageControllerISpec extends BaseISpec:
       "x-forwarded-host" -> "some-host"
     )
 
-    def notificationPostRequestMappingBuilder(notificationPayloadXml: Elem): MappingBuilder =
+    def notificationPostRequestMappingBuilder: MappingBuilder =
       post(urlEqualTo("/automated-export-system-notifications/notification"))
+
+    def notificationPostRequestPatternBuilder(notificationPayloadXml: Elem): RequestPatternBuilder =
+      postRequestedFor(urlEqualTo("/automated-export-system-notifications/notification"))
         .withHeader("Authorization", equalTo(s"Bearer $notificationsBearerToken"))
         .withHeader("Content-Type", equalTo(Helpers.XML))
         .withHeader("X-Correlation-Id", equalTo(correlationId))
@@ -64,7 +67,11 @@ class MessageControllerISpec extends BaseISpec:
   object Setup extends Setup
 
   override def config: Map[String, Any] =
-    super.config ++ Map("microservice.services.aes-notifications.bearer-token" -> Setup.notificationsBearerToken)
+    super.config ++ Map(
+      "microservice.services.aes-notifications.bearer-token"                 -> Setup.notificationsBearerToken,
+      "microservice.services.aes-notifications.notification-delay"           -> "0 seconds",
+      "microservice.services.aes-notifications.diversion-notification-delay" -> "0 seconds"
+    )
 
   override def bindingOverrides: Seq[Binding[_]] =
     super.bindingOverrides ++ Seq(
@@ -87,10 +94,10 @@ class MessageControllerISpec extends BaseISpec:
 
     "returns sync 401 when MRN ends with A0" in new Setup {
       val body =
-        """<AESDigitalNotification>
+        """<CC507C>
           |  <Header><messageSender>GB123</messageSender></Header>
           |  <Body><MRN>26GB123456789ABCDE0A0</MRN></Body>
-          |</AESDigitalNotification>""".stripMargin
+          |</CC507C>""".stripMargin
 
       val request = FakeRequest(POST, endpoint)
         .withHeaders(validHeaders*)
@@ -105,10 +112,10 @@ class MessageControllerISpec extends BaseISpec:
 
     "returns sync 404 when MRN ends with A1" in new Setup {
       val body =
-        """<AESDigitalNotification>
+        """<CC507C>
           |  <Header><messageSender>GB123</messageSender></Header>
           |  <Body><MRN>26GB123456789ABCDE0A1</MRN></Body>
-          |</AESDigitalNotification>""".stripMargin
+          |</CC507C>""".stripMargin
 
       val result = route(
         app,
@@ -123,14 +130,14 @@ class MessageControllerISpec extends BaseISpec:
     "returns 204 for async IE906 path (e.g. MRN ends B0 -> code 90 matched and forwarded)" in new Setup {
       val IE906ErrorXml: Elem =
         <FunctionalError>
-          <errorPointer>Body.ExportOperation.MRN</errorPointer>
+          <errorPointer>/CC507C/Body/ExportOperation/MRN</errorPointer>
           <errorCode>90</errorCode>
           <errorReason>ERR02</errorReason>
           <originalAttributeValue>MRN-B0</originalAttributeValue>
         </FunctionalError>
 
       val requestXml: Elem =
-        <AESDigitalNotification>
+        <CC507C>
           <Header>
             <messageSender>{eoriNumber}</messageSender>
           </Header>
@@ -139,7 +146,7 @@ class MessageControllerISpec extends BaseISpec:
               <MRN>MRN-B0</MRN>
             </ExportOperation>
           </Body>
-        </AESDigitalNotification>
+        </CC507C>
 
       val notificationPayloadIE906ErrorXml: Elem =
         <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
@@ -159,7 +166,7 @@ class MessageControllerISpec extends BaseISpec:
         </AESDigitalNotification>
 
       stubFor(
-        notificationPostRequestMappingBuilder(notificationPayloadIE906ErrorXml)
+        notificationPostRequestMappingBuilder
           .willReturn(
             aResponse()
               .withStatus(Helpers.NO_CONTENT)
@@ -173,34 +180,36 @@ class MessageControllerISpec extends BaseISpec:
 
       val result: Future[Result] = Helpers.route(app, request).value
 
-      WireMock.findUnmatchedRequests().asScala
-
       Helpers.status(result) shouldBe Helpers.NO_CONTENT
+
+      eventually {
+        verify(1, notificationPostRequestPatternBuilder(notificationPayloadIE906ErrorXml))
+      }
     }
 
     "returns 204 for async IE917 path (e.g. office of exit reference number ends 000 -> code 12 matched and forwarded)" in new Setup {
       val IE917ErrorXml: Elem =
         <XmlError>
-          <errorPointer>Body.CustomsOfficeOExitActual.referenceNumber</errorPointer>
+          <errorPointer>/CC507C/Body/CustomsOfficeOfExitActual/referenceNumber</errorPointer>
           <errorCode>12</errorCode>
           <errorText>ERR02</errorText>
           <originalAttributeValue>some-reference-000</originalAttributeValue>
         </XmlError>
 
       val requestXml: Elem =
-        <AESDigitalNotification>
+        <CC507C>
           <Header>
             <messageSender>{eoriNumber}</messageSender>
           </Header>
           <Body>
-            <CustomsOfficeOExitActual>
+            <CustomsOfficeOfExitActual>
               <referenceNumber>some-reference-000</referenceNumber>
-            </CustomsOfficeOExitActual>
+            </CustomsOfficeOfExitActual>
             <ExportOperation>
               <MRN>{mrn}</MRN>
             </ExportOperation>
           </Body>
-        </AESDigitalNotification>
+        </CC507C>
 
       val notificationPayloadAcceptedXml: Elem =
         <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
@@ -220,7 +229,7 @@ class MessageControllerISpec extends BaseISpec:
         </AESDigitalNotification>
 
       stubFor(
-        notificationPostRequestMappingBuilder(notificationPayloadAcceptedXml)
+        notificationPostRequestMappingBuilder
           .willReturn(
             aResponse()
               .withStatus(Helpers.NO_CONTENT)
@@ -234,14 +243,16 @@ class MessageControllerISpec extends BaseISpec:
 
       val result: Future[Result] = Helpers.route(app, request).value
 
-      WireMock.findUnmatchedRequests().asScala
-
       Helpers.status(result) shouldBe Helpers.NO_CONTENT
+
+      eventually {
+        verify(1, notificationPostRequestPatternBuilder(notificationPayloadAcceptedXml))
+      }
     }
 
     "returns 204 for normal ACK path when no sync/IE906 rule matches" in new Setup {
       val requestXml: Elem =
-        <AESDigitalNotification>
+        <CC507C>
           <Header>
             <messageSender>{eoriNumber}</messageSender>
           </Header>
@@ -250,7 +261,7 @@ class MessageControllerISpec extends BaseISpec:
               <MRN>{mrn}</MRN>
             </ExportOperation>
           </Body>
-        </AESDigitalNotification>
+        </CC507C>
 
       val notificationPayloadAcceptedXml: Elem =
         <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
@@ -270,7 +281,7 @@ class MessageControllerISpec extends BaseISpec:
         </AESDigitalNotification>
 
       stubFor(
-        notificationPostRequestMappingBuilder(notificationPayloadAcceptedXml)
+        notificationPostRequestMappingBuilder
           .willReturn(
             aResponse()
               .withStatus(Helpers.NO_CONTENT)
@@ -284,16 +295,18 @@ class MessageControllerISpec extends BaseISpec:
 
       val result: Future[Result] = Helpers.route(app, request).value
 
-      WireMock.findUnmatchedRequests().asScala
-
       Helpers.status(result) shouldBe Helpers.NO_CONTENT
+
+      eventually {
+        verify(1, notificationPostRequestPatternBuilder(notificationPayloadAcceptedXml))
+      }
     }
 
     "returns 204 when ACK Diversion" - {
 
       "and followed by an ACK Accepted" in new Setup {
         val requestXml: Elem =
-          <AESDigitalNotification>
+          <CC507C>
             <Header>
               <messageSender>{eoriNumber}</messageSender>
             </Header>
@@ -305,7 +318,7 @@ class MessageControllerISpec extends BaseISpec:
                 </Consignment>
               </GoodsShipment>
             </Body>
-          </AESDigitalNotification>
+          </CC507C>
 
         val notificationPayloadDiversionXml: Elem =
           <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
@@ -323,14 +336,6 @@ class MessageControllerISpec extends BaseISpec:
               <MRN>{mrn}</MRN>
             </Body>
           </AESDigitalNotification>
-
-        stubFor(
-          notificationPostRequestMappingBuilder(notificationPayloadDiversionXml)
-            .willReturn(
-              aResponse()
-                .withStatus(Helpers.NO_CONTENT)
-            )
-        )
 
         val notificationPayloadAcceptedXml: Elem =
           <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
@@ -350,7 +355,7 @@ class MessageControllerISpec extends BaseISpec:
           </AESDigitalNotification>
 
         stubFor(
-          notificationPostRequestMappingBuilder(notificationPayloadAcceptedXml)
+          notificationPostRequestMappingBuilder
             .willReturn(
               aResponse()
                 .withStatus(Helpers.NO_CONTENT)
@@ -364,37 +369,40 @@ class MessageControllerISpec extends BaseISpec:
 
         val result: Future[Result] = Helpers.route(app, request).value
 
-        WireMock.findUnmatchedRequests().asScala
-
         Helpers.status(result) shouldBe Helpers.NO_CONTENT
+
+        eventually {
+          verify(1, notificationPostRequestPatternBuilder(notificationPayloadDiversionXml))
+          verify(1, notificationPostRequestPatternBuilder(notificationPayloadAcceptedXml))
+        }
       }
 
       "and followed by an IE917 error" in new Setup {
         val IE917ErrorXml: Elem =
           <XmlError>
-            <errorPointer>Body.CustomsOfficeOExitActual.referenceNumber</errorPointer>
+            <errorPointer>/CC507C/Body/CustomsOfficeOfExitActual/referenceNumber</errorPointer>
             <errorCode>12</errorCode>
             <errorText>ERR02</errorText>
             <originalAttributeValue>XMLERROR000</originalAttributeValue>
           </XmlError>
 
         val requestXml: Elem =
-          <AESDigitalNotification>
+          <CC507C>
             <Header>
               <messageSender>{eoriNumber}</messageSender>
             </Header>
             <Body>
               <MRN>{mrn}</MRN>
-              <CustomsOfficeOExitActual>
+              <CustomsOfficeOfExitActual>
                 <referenceNumber>XMLERROR000</referenceNumber>
-              </CustomsOfficeOExitActual>
+              </CustomsOfficeOfExitActual>
               <GoodsShipment>
                 <Consignment>
                   <parentUCRID>ACKDIVERSIONBB</parentUCRID>
                 </Consignment>
               </GoodsShipment>
             </Body>
-          </AESDigitalNotification>
+          </CC507C>
 
         val notificationPayloadDiversionXml: Elem =
           <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
@@ -412,14 +420,6 @@ class MessageControllerISpec extends BaseISpec:
               <MRN>{mrn}</MRN>
             </Body>
           </AESDigitalNotification>
-
-        stubFor(
-          notificationPostRequestMappingBuilder(notificationPayloadDiversionXml)
-            .willReturn(
-              aResponse()
-                .withStatus(Helpers.NO_CONTENT)
-            )
-        )
 
         val notificationPayloadIE917ErrorXml: Elem =
           <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
@@ -439,7 +439,7 @@ class MessageControllerISpec extends BaseISpec:
           </AESDigitalNotification>
 
         stubFor(
-          notificationPostRequestMappingBuilder(notificationPayloadIE917ErrorXml)
+          notificationPostRequestMappingBuilder
             .willReturn(
               aResponse()
                 .withStatus(Helpers.NO_CONTENT)
@@ -453,22 +453,25 @@ class MessageControllerISpec extends BaseISpec:
 
         val result: Future[Result] = Helpers.route(app, request).value
 
-        WireMock.findUnmatchedRequests().asScala
-
         Helpers.status(result) shouldBe Helpers.NO_CONTENT
+
+        eventually {
+          verify(1, notificationPostRequestPatternBuilder(notificationPayloadDiversionXml))
+          verify(1, notificationPostRequestPatternBuilder(notificationPayloadIE917ErrorXml))
+        }
       }
 
       "and followed by an IE906 error" in new Setup {
         val IE906ErrorXml: Elem =
           <FunctionalError>
-            <errorPointer>Body.GoodsShipment.Consignment.ReferenceNumberUCRID</errorPointer>
+            <errorPointer>/CC507C/Body/GoodsShipment/Consignment/ReferenceNumberUCRID</errorPointer>
             <errorCode>8</errorCode>
             <errorReason>ERR02</errorReason>
             <originalAttributeValue>FUNCTIONALERROR000</originalAttributeValue>
           </FunctionalError>
 
         val requestXml: Elem =
-          <AESDigitalNotification>
+          <CC507C>
             <Header>
               <messageSender>{eoriNumber}</messageSender>
             </Header>
@@ -481,7 +484,7 @@ class MessageControllerISpec extends BaseISpec:
                 </Consignment>
               </GoodsShipment>
             </Body>
-          </AESDigitalNotification>
+          </CC507C>
 
         val notificationPayloadDiversionXml: Elem =
           <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
@@ -499,14 +502,6 @@ class MessageControllerISpec extends BaseISpec:
               <MRN>{mrn}</MRN>
             </Body>
           </AESDigitalNotification>
-
-        stubFor(
-          notificationPostRequestMappingBuilder(notificationPayloadDiversionXml)
-            .willReturn(
-              aResponse()
-                .withStatus(Helpers.NO_CONTENT)
-            )
-        )
 
         val notificationPayloadIE916ErrorXml: Elem =
           <AESDigitalNotification xmlns="http://www.hmrc.gsi.gov.uk/eis">
@@ -526,7 +521,7 @@ class MessageControllerISpec extends BaseISpec:
           </AESDigitalNotification>
 
         stubFor(
-          notificationPostRequestMappingBuilder(notificationPayloadIE916ErrorXml)
+          notificationPostRequestMappingBuilder
             .willReturn(
               aResponse()
                 .withStatus(Helpers.NO_CONTENT)
@@ -540,9 +535,12 @@ class MessageControllerISpec extends BaseISpec:
 
         val result: Future[Result] = Helpers.route(app, request).value
 
-        WireMock.findUnmatchedRequests().asScala
-
         Helpers.status(result) shouldBe Helpers.NO_CONTENT
+
+        eventually {
+          verify(1, notificationPostRequestPatternBuilder(notificationPayloadDiversionXml))
+          verify(1, notificationPostRequestPatternBuilder(notificationPayloadIE916ErrorXml))
+        }
       }
     }
   }

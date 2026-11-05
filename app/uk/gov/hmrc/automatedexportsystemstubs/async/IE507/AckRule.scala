@@ -17,28 +17,27 @@
 package uk.gov.hmrc.automatedexportsystemstubs.async.IE507
 
 import uk.gov.hmrc.automatedexportsystemstubs.models.ActionCode
-import uk.gov.hmrc.automatedexportsystemstubs.utils.{XmlRequestBodyExtractor, XmlRequestHelper}
+import uk.gov.hmrc.automatedexportsystemstubs.utils.{XmlRequestBodyPaths, XmlRequestHelper}
+import uk.gov.hmrc.automatedexportsystemstubs.xml.XmlMatchRule
 
-import scala.xml.NodeSeq
+import scala.xml.{Node, NodeSeq}
 
-final case class AckRule(
-  extractor:  XmlRequestBodyExtractor,
-  matches:    String => Boolean,
+final case class AckRule[T](
+  path:       String,
+  matches:    T => Boolean,
+  parse:      Node => T,
   actionCode: ActionCode
-)
+) extends XmlMatchRule(path, matches, parse)
 
 object AckRule:
-  private lazy val diversions: List[AckRule] = List(
+  private lazy val diversions: List[AckRule[String]] = List(
     AckRule(
-      XmlRequestBodyExtractor.extractParentUcrId,
+      XmlRequestBodyPaths.parentUcrId,
       XmlRequestHelper.endsWith("BB"),
+      _.text.trim,
       ActionCode.Diversion
     )
   )
 
   def anyDiversionMatches(xml: NodeSeq): Boolean =
-    diversions.exists(diversionRule =>
-      val value: Option[String] = diversionRule.extractor.extract(xml)
-
-      value.exists(diversionRule.matches)
-    )
+    diversions.exists(diversionRule => diversionRule.check(xml).nonEmpty)

@@ -49,7 +49,6 @@ object IE906Rule:
     IE906Rule("90", mrn, endsWith("B0"), textAt),
 
     IE906Rule("92", transportEquipmentSequenceNumber, equalsTo("40"), textAt),
-    IE906Rule("92", sealSequenceNumber, equalsTo("40"), textAt),
     IE906Rule("92", goodsReferenceSequenceNumber, equalsTo("40"), textAt),
     IE906Rule("92", locationOfGoodsSequenceNumber, equalsTo("40"), textAt),
     IE906Rule("92", transportDocumentSequenceNumber, equalsTo("40"), textAt),

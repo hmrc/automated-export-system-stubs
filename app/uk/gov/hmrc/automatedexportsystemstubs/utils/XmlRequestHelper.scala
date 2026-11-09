@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.utils
 
-import scala.xml.NodeSeq
+import scala.xml.Node
 
 object XmlRequestHelper:
 
@@ -26,10 +26,4 @@ object XmlRequestHelper:
   def equalsTo(v: String): String => Boolean =
     _.trim == v
 
-  private def textAt(ns: NodeSeq): Option[String] =
-    ns.headOption.map(_.text).map(_.trim).filter(_.nonEmpty)
-
-  def extract(path: String)(xml: NodeSeq): Option[String] =
-    val names = path.split('.').toList
-    val nodes = names.foldLeft(xml: NodeSeq)((acc, name) => acc \ name)
-    textAt(nodes)
+  def textAt(n: Node): String = n.text.trim

@@ -16,56 +16,84 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.async.IE917
 
-import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.{BaseSpec, XmlOps}
 
 import scala.xml.Elem
 
 class IE917EngineSpec extends BaseSpec:
   "IE917Engine.toXml" - {
+
     "build one error node " in {
-      val m = IE917Engine.MatchResult("12", "Body/CustomsOfficeOExitActual/referenceNumber", "26GB123456789ABCD000")
+      val m = IE917Engine.MatchResult("12", "Body/CustomsOfficeOfExitActual/referenceNumber", "26GB123456789ABCD000")
+
+      val xmlError: Elem =
+        <XmlError>
+          <errorPointer>Body/CustomsOfficeOfExitActual/referenceNumber</errorPointer>
+          <errorCode>12</errorCode>
+          <errorText>ERR02</errorText>
+          <originalAttributeValue>26GB123456789ABCD000</originalAttributeValue>
+        </XmlError>
 
       val xml = IE917Engine.toXmlError(m)
 
-      (xml \ "errorPointer").text           shouldBe "Body/CustomsOfficeOExitActual/referenceNumber"
-      (xml \ "errorCode").text              shouldBe "12"
-      (xml \ "errorText").text              shouldBe "ERR02"
-      (xml \ "originalAttributeValue").text shouldBe "26GB123456789ABCD000"
+      XmlOps.normalize(xml) shouldBe XmlOps.normalize(xmlError)
     }
 
     "IE917Engine.allMatches -> toXMLError" - {
+
       "create multiple XMLError nodes when multiple rules match" in {
         val input: Elem =
-          <AESDigitalNotification>
+          <CC507C>
             <Body>
-              <CustomsOfficeOExitActual><referenceNumber>26GB123456789ABCD000</referenceNumber></CustomsOfficeOExitActual>
-              <ExportOperation><MRN>26GB123456789ABCDEB0</MRN></ExportOperation>
+              <CustomsOfficeOfExitActual>
+                <referenceNumber>26GB123456789ABCD000</referenceNumber>
+              </CustomsOfficeOfExitActual>
+              <ExportOperation>
+                <MRN>26GB123456789ABCDEB0</MRN>
+              </ExportOperation>
               <GoodsShipment>
-                <Consignment><parentUCRID>XXX033</parentUCRID></Consignment>
+                <Consignment>
+                  <parentUCRID>XXX033</parentUCRID>
+                </Consignment>
               </GoodsShipment>
             </Body>
-          </AESDigitalNotification>
+          </CC507C>
+
+        val xmlError1: Elem =
+          <XmlError>
+            <errorPointer>/CC507C/Body/CustomsOfficeOfExitActual/referenceNumber</errorPointer>
+            <errorCode>12</errorCode>
+            <errorText>ERR02</errorText>
+            <originalAttributeValue>26GB123456789ABCD000</originalAttributeValue>
+          </XmlError>
+
+        val xmlError2: Elem =
+          <XmlError>
+            <errorPointer>/CC507C/Body/GoodsShipment/Consignment/parentUCRID</errorPointer>
+            <errorCode>52</errorCode>
+            <errorText>ERR02</errorText>
+            <originalAttributeValue>XXX033</originalAttributeValue>
+          </XmlError>
+
+        val xmlErrors = Seq(xmlError1, xmlError2)
 
         val errors: Seq[Elem] =
           IE917Engine.allMatches(input).map(IE917Engine.toXmlError)
 
-        errors.size shouldBe 2
-
-        val codes = errors.map(e => (e \ "errorCode").text)
-        codes should contain("12")
-        codes should contain("52")
+        errors.map(XmlOps.normalize) shouldBe xmlErrors.map(XmlOps.normalize)
       }
 
       "return no XMLError nodes when no rules match" in {
         val input: Elem =
-          <AESDigitalNotification>
+          <CC507C>
             <Body>
               <MRN>26GB123456789ABCDE00</MRN>
             </Body>
-          </AESDigitalNotification>
+          </CC507C>
 
-        val errors = IE917Engine.allMatches(input).map(IE917Engine.toXmlError)
-        errors shouldBe empty
+        val errors: Seq[Elem] = IE917Engine.allMatches(input).map(IE917Engine.toXmlError)
+
+        errors shouldBe Nil
       }
     }
 

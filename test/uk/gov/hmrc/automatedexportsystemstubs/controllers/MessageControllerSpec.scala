@@ -41,13 +41,6 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       Map("some-header" -> "header-val", "another-header" -> "another")
 
     when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
-    when(
-      mockNotificationService.sendAckNotification(
-        any[NotificationData],
-        any[ActionCode],
-        any[String]
-      )(any[HeaderCarrier])
-    ).thenReturn(Future.successful(()))
 
     private val cc             = stubControllerComponents()
     private val bodyParsers    = new BodyParsers.Default(cc.parsers)
@@ -86,14 +79,14 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
           .thenReturn(Future.successful(()))
 
         val xmlBody: Elem =
-          <AESDigitalNotification>
+          <CC507C>
             <Header>
               <messageSender>{eoriNumber}</messageSender>
             </Header>
             <Body>
               <MRN>{mrn}</MRN>
             </Body>
-          </AESDigitalNotification>
+          </CC507C>
 
         val requestWithHeaders: FakeRequest[AnyContentAsXml] =
           fakeRequest
@@ -111,6 +104,27 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       "when the response is ACK Diversion" - {
 
         "followed by an ACK Accepted" in new Setup {
+          val xmlBody: Elem =
+            <CC507C>
+              <Header>
+                <messageSender>{eoriNumber}</messageSender>
+              </Header>
+              <Body>
+                <MRN>{mrn}</MRN>
+                <GoodsShipment>
+                  <Consignment>
+                    <parentUCRID>ACKDIVERSIONBB</parentUCRID>
+                  </Consignment>
+                </GoodsShipment>
+              </Body>
+            </CC507C>
+
+          val requestWithHeaders: FakeRequest[AnyContentAsXml] =
+            fakeRequest
+              .withHeaders(requiredHeaders.toSeq: _*)
+              .withHeaders("x-correlation-id" -> correlationId)
+              .withXmlBody(xmlBody)
+
           val notificationData: NotificationData =
             NotificationData(
               eori = eoriNumber,
@@ -136,27 +150,6 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
           )
             .thenReturn(Future.successful(()))
 
-          val xmlBody: Elem =
-            <AESDigitalNotification>
-              <Header>
-                <messageSender>{eoriNumber}</messageSender>
-              </Header>
-              <Body>
-                <MRN>{mrn}</MRN>
-                <GoodsShipment>
-                  <Consignment>
-                    <parentUCRID>ACKDIVERSIONBB</parentUCRID>
-                  </Consignment>
-                </GoodsShipment>
-              </Body>
-            </AESDigitalNotification>
-
-          val requestWithHeaders: FakeRequest[AnyContentAsXml] =
-            fakeRequest
-              .withHeaders(requiredHeaders.toSeq: _*)
-              .withHeaders("x-correlation-id" -> correlationId)
-              .withXmlBody(xmlBody)
-
           val result: Future[Result] = controller.message()(requestWithHeaders)
 
           status(result)         shouldBe Status.NO_CONTENT
@@ -165,6 +158,30 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
         }
 
         "followed by an IE917 error" in new Setup {
+          val xmlBody: Elem =
+            <CC507C>
+              <Header>
+                <messageSender>{eoriNumber}</messageSender>
+              </Header>
+              <Body>
+                <MRN>{mrn}</MRN>
+                <CustomsOfficeOfExitActual>
+                  <referenceNumber>XMLERROR000</referenceNumber>
+                </CustomsOfficeOfExitActual>
+                <GoodsShipment>
+                  <Consignment>
+                    <parentUCRID>ACKDIVERSIONBB</parentUCRID>
+                  </Consignment>
+                </GoodsShipment>
+              </Body>
+            </CC507C>
+
+          val requestWithHeaders: FakeRequest[AnyContentAsXml] =
+            fakeRequest
+              .withHeaders(requiredHeaders.toSeq: _*)
+              .withHeaders("x-correlation-id" -> correlationId)
+              .withXmlBody(xmlBody)
+
           val notificationData: NotificationData =
             NotificationData(
               eori = eoriNumber,
@@ -183,7 +200,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
 
           val IE917ErrorXml: Elem =
             <XmlError>
-              <errorPointer>Body.CustomsOfficeOExitActual.referenceNumber</errorPointer>
+              <errorPointer>/CC507C/Body/CustomsOfficeOfExitActual/referenceNumber</errorPointer>
               <errorCode>12</errorCode>
               <errorText>ERR02</errorText>
               <originalAttributeValue>XMLERROR000</originalAttributeValue>
@@ -198,30 +215,6 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
           )
             .thenReturn(Future.successful(()))
 
-          val xmlBody: Elem =
-            <AESDigitalNotification>
-              <Header>
-                <messageSender>{eoriNumber}</messageSender>
-              </Header>
-              <Body>
-                <MRN>{mrn}</MRN>
-                <CustomsOfficeOExitActual>
-                  <referenceNumber>XMLERROR000</referenceNumber>
-                </CustomsOfficeOExitActual>
-                <GoodsShipment>
-                  <Consignment>
-                    <parentUCRID>ACKDIVERSIONBB</parentUCRID>
-                  </Consignment>
-                </GoodsShipment>
-              </Body>
-            </AESDigitalNotification>
-
-          val requestWithHeaders: FakeRequest[AnyContentAsXml] =
-            fakeRequest
-              .withHeaders(requiredHeaders.toSeq: _*)
-              .withHeaders("x-correlation-id" -> correlationId)
-              .withXmlBody(xmlBody)
-
           val result: Future[Result] = controller.message()(requestWithHeaders)
 
           status(result)         shouldBe Status.NO_CONTENT
@@ -230,6 +223,28 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
         }
 
         "followed by an IE906 error" in new Setup {
+          val xmlBody: Elem =
+            <CC507C>
+              <Header>
+                <messageSender>{eoriNumber}</messageSender>
+              </Header>
+              <Body>
+                <MRN>{mrn}</MRN>
+                <GoodsShipment>
+                  <Consignment>
+                    <ReferenceNumberUCRID>FUNCTIONALERROR000</ReferenceNumberUCRID>
+                    <parentUCRID>ACKDIVERSIONBB</parentUCRID>
+                  </Consignment>
+                </GoodsShipment>
+              </Body>
+            </CC507C>
+
+          val requestWithHeaders: FakeRequest[AnyContentAsXml] =
+            fakeRequest
+              .withHeaders(requiredHeaders.toSeq: _*)
+              .withHeaders("x-correlation-id" -> correlationId)
+              .withXmlBody(xmlBody)
+
           val notificationData: NotificationData =
             NotificationData(
               eori = eoriNumber,
@@ -248,7 +263,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
 
           val IE906ErrorXml: Elem =
             <FunctionalError>
-              <errorPointer>Body.GoodsShipment.Consignment.ReferenceNumberUCRID</errorPointer>
+              <errorPointer>/CC507C/Body/GoodsShipment/Consignment/ReferenceNumberUCRID</errorPointer>
               <errorCode>8</errorCode>
               <errorReason>ERR02</errorReason>
               <originalAttributeValue>FUNCTIONALERROR000</originalAttributeValue>
@@ -262,28 +277,6 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
             )(any[HeaderCarrier])
           )
             .thenReturn(Future.successful(()))
-
-          val xmlBody: Elem =
-            <AESDigitalNotification>
-              <Header>
-                <messageSender>{eoriNumber}</messageSender>
-              </Header>
-              <Body>
-                <MRN>{mrn}</MRN>
-                <GoodsShipment>
-                  <Consignment>
-                    <ReferenceNumberUCRID>FUNCTIONALERROR000</ReferenceNumberUCRID>
-                    <parentUCRID>ACKDIVERSIONBB</parentUCRID>
-                  </Consignment>
-                </GoodsShipment>
-              </Body>
-            </AESDigitalNotification>
-
-          val requestWithHeaders: FakeRequest[AnyContentAsXml] =
-            fakeRequest
-              .withHeaders(requiredHeaders.toSeq: _*)
-              .withHeaders("x-correlation-id" -> correlationId)
-              .withXmlBody(xmlBody)
 
           val result: Future[Result] = controller.message()(requestWithHeaders)
 

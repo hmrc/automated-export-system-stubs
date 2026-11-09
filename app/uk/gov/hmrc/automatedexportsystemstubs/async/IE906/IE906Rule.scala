@@ -31,7 +31,7 @@ final case class IE906Rule[T](
 
 object IE906Rule:
   val all: List[IE906Rule[String]] = List(
-    IE906Rule("8", referenceNumberUCRID, endsWith("000"), textAt),
+    IE906Rule("8", referenceNumberUCR, endsWith("000"), textAt),
 
     IE906Rule("12", typeOfLocation, equalsTo("E"), textAt),
 
@@ -59,8 +59,8 @@ object IE906Rule:
     IE906Rule("94", mrn, endsWith("B4"), textAt),
     IE906Rule("95", mrn, endsWith("B5"), textAt),
 
-    IE906Rule("96", referenceNumberUCRID, endsWith("001"), textAt),
-    IE906Rule("97", referenceNumberUCRID, endsWith("002"), textAt),
-    IE906Rule("98", referenceNumberUCRID, endsWith("003"), textAt),
-    IE906Rule("99", referenceNumberUCRID, endsWith("004"), textAt)
+    IE906Rule("96", referenceNumberUCR, endsWith("001"), textAt),
+    IE906Rule("97", referenceNumberUCR, endsWith("002"), textAt),
+    IE906Rule("98", referenceNumberUCR, endsWith("003"), textAt),
+    IE906Rule("99", referenceNumberUCR, endsWith("004"), textAt)
   )

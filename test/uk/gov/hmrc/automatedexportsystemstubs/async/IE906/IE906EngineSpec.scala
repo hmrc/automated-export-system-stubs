@@ -50,7 +50,7 @@ class IE906EngineSpec extends BaseSpec:
               </ExportOperation>
               <GoodsShipment>
                 <Consignment>
-                  <ReferenceNumberUCRID>XXX001</ReferenceNumberUCRID>
+                  <referenceNumberUCR>XXX001</referenceNumberUCR>
                 </Consignment>
               </GoodsShipment>
             </Body>
@@ -66,7 +66,7 @@ class IE906EngineSpec extends BaseSpec:
 
         val functionalError2: Elem =
           <FunctionalError>
-            <errorPointer>/CC507C/Body/GoodsShipment/Consignment/ReferenceNumberUCRID</errorPointer>
+            <errorPointer>/CC507C/Body/GoodsShipment/Consignment/referenceNumberUCR</errorPointer>
             <errorCode>96</errorCode>
             <errorReason>ERR02</errorReason>
             <originalAttributeValue>XXX001</originalAttributeValue>

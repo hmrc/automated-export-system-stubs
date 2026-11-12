@@ -464,7 +464,7 @@ class MessageControllerISpec extends BaseISpec:
       "and followed by an IE906 error" in new Setup {
         val IE906ErrorXml: Elem =
           <FunctionalError>
-            <errorPointer>/CC507C/Body/GoodsShipment/Consignment/referenceNumberUCR</errorPointer>
+            <errorPointer>/CC507C/Body/GoodsShipment/Consignment/ReferenceNumberUCRID</errorPointer>
             <errorCode>8</errorCode>
             <errorReason>ERR02</errorReason>
             <originalAttributeValue>FUNCTIONALERROR000</originalAttributeValue>
@@ -479,7 +479,7 @@ class MessageControllerISpec extends BaseISpec:
               <MRN>{mrn}</MRN>
               <GoodsShipment>
                 <Consignment>
-                  <referenceNumberUCR>FUNCTIONALERROR000</referenceNumberUCR>
+                  <ReferenceNumberUCRID>FUNCTIONALERROR000</ReferenceNumberUCRID>
                   <parentUCRID>ACKDIVERSIONBB</parentUCRID>
                 </Consignment>
               </GoodsShipment>

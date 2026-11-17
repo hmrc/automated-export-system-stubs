@@ -232,7 +232,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
                 <MRN>{mrn}</MRN>
                 <GoodsShipment>
                   <Consignment>
-                    <ReferenceNumberUCRID>FUNCTIONALERROR000</ReferenceNumberUCRID>
+                    <referenceNumberUCR>FUNCTIONALERROR000</referenceNumberUCR>
                     <parentUCRID>ACKDIVERSIONBB</parentUCRID>
                   </Consignment>
                 </GoodsShipment>
@@ -263,7 +263,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
 
           val IE906ErrorXml: Elem =
             <FunctionalError>
-              <errorPointer>/CC507C/Body/GoodsShipment/Consignment/ReferenceNumberUCRID</errorPointer>
+              <errorPointer>/CC507C/Body/GoodsShipment/Consignment/referenceNumberUCR</errorPointer>
               <errorCode>8</errorCode>
               <errorReason>ERR02</errorReason>
               <originalAttributeValue>FUNCTIONALERROR000</originalAttributeValue>

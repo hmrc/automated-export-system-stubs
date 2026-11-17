@@ -19,7 +19,7 @@ package uk.gov.hmrc.automatedexportsystemstubs.utils
 object XmlRequestBodyPaths:
   val mrn: String = "Body/ExportOperation/MRN"
 
-  val referenceNumberUCRID: String = "Body/GoodsShipment/Consignment/ReferenceNumberUCRID"
+  val referenceNumberUCRID: String = "Body/GoodsShipment/Consignment/referenceNumberUCR"
 
   val authorisationNumber: String =
     "Body/GoodsShipment/Consignment/LocationOfGoods/authorisationNumber"

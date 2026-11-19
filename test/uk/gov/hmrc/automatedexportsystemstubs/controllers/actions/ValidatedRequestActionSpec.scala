@@ -19,20 +19,27 @@ package uk.gov.hmrc.automatedexportsystemstubs.controllers.actions
 import org.mockito.Mockito.when
 import play.api.http.Status
 import play.api.mvc.*
-import play.api.test.{FakeRequest, Helpers}
 import play.api.test.Helpers.*
+import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.request.ValidatedRequest
 import uk.gov.hmrc.automatedexportsystemstubs.helpers.BaseSpec
 
+import java.time.{Clock, Instant, ZoneOffset}
 import scala.concurrent.Future
 
 class ValidatedRequestActionSpec extends BaseSpec {
 
   trait Setup:
+    val instant: Instant = Instant.parse("2026-11-19T00:00:00.000Z")
+
     when(mockAppConfig.notificationToken).thenReturn("test-token")
-    val cc          = stubControllerComponents()
+
+    val cc = stubControllerComponents()
+
     val bodyParsers = new BodyParsers.Default(cc.parsers)
+
+    val clock: Clock = Clock.fixed(instant, ZoneOffset.UTC)
 
   "ValidatedRequestAction wildcard matching" - {
 
@@ -41,7 +48,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         Map("x-required" -> "*")
       )
 
-      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig, clock)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders("x-required" -> "*")
@@ -57,7 +64,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         Map("x-required" -> "*")
       )
 
-      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig, clock)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders("x-required" -> "")
@@ -74,7 +81,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         Map("date" -> "*")
       )
 
-      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig, clock)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders("date" -> "some-date")
@@ -91,7 +98,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         Map("x-required" -> "*")
       )
 
-      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig, clock)
 
       val request = FakeRequest("GET", "/test")
 
@@ -108,7 +115,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         Map("authorization" -> "Bearer *")
       )
 
-      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig, clock)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders("authorization" -> "Bearer test-token")
@@ -127,7 +134,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         Map("authorization" -> "Bearer *")
       )
 
-      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig, clock)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders("authorization" -> "test-token")
@@ -146,7 +153,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         Map("authorization" -> "Bearer *")
       )
 
-      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig, clock)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders("authorization" -> "Bearer ")
@@ -170,7 +177,7 @@ class ValidatedRequestActionSpec extends BaseSpec {
         )
       )
 
-      val action = ValidatedRequestAction(bodyParsers, mockAppConfig)
+      val action = ValidatedRequestAction(bodyParsers, mockAppConfig, clock)
 
       val request = FakeRequest("GET", "/test")
         .withHeaders(

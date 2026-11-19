@@ -24,10 +24,11 @@ import play.api.mvc.{AnyContentAsXml, BodyParsers, Result}
 import play.api.test.Helpers.*
 import play.api.test.{FakeRequest, Helpers}
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.ValidatedRequestAction
-import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, TestData, XmlOps}
+import uk.gov.hmrc.automatedexportsystemstubs.helpers.{AllMocks, BaseSpec, XmlOps}
 import uk.gov.hmrc.automatedexportsystemstubs.models.{ActionCode, NotificationData}
 import uk.gov.hmrc.http.HeaderCarrier
 
+import java.time.{Clock, Instant, ZoneOffset}
 import scala.concurrent.Future
 import scala.xml.Elem
 
@@ -37,25 +38,42 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
     (xml \\ name).text
 
   trait Setup:
+    val eoriNumber:    String  = "GB123456789000"
+    val mrn:           String  = "26GB123456789ABCDEX9"
+    val correlationId: String  = "correlationId"
+    val instant:       Instant = Instant.parse("2026-11-19T00:00:00.000Z")
+
     val requiredHeaders: Map[String, String] =
       Map("some-header" -> "header-val", "another-header" -> "another")
 
     when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
 
-    private val cc             = stubControllerComponents()
-    private val bodyParsers    = new BodyParsers.Default(cc.parsers)
-    val validatedRequestAction = ValidatedRequestAction(bodyParsers, mockAppConfig)
+    private val cc = stubControllerComponents()
 
-    val eoriNumber:    String = "GB123456789000"
-    val mrn:           String = "26GB123456789ABCDEX9"
-    val correlationId: String = "correlationId"
+    private val bodyParsers = new BodyParsers.Default(cc.parsers)
+
+    val clock: Clock = Clock.fixed(instant, ZoneOffset.UTC)
+
+    val validatedRequestAction = ValidatedRequestAction(bodyParsers, mockAppConfig, clock)
 
     val controller: MessageController =
       new MessageController(
         Helpers.stubControllerComponents(),
         mockNotificationService,
-        validatedRequestAction
+        validatedRequestAction,
+        clock
       )
+
+    def requestWithMrn(mrn: String): FakeRequest[AnyContentAsXml] =
+      FakeRequest("POST", "/cds/aesIE507Request/v1")
+        .withXmlBody(
+          <message>
+            <MRN>
+              {mrn}
+            </MRN>
+          </message>
+        )
+  end Setup
 
   "POST /" - {
 
@@ -89,7 +107,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
           </CC507C>
 
         val requestWithHeaders: FakeRequest[AnyContentAsXml] =
-          fakeRequest
+          FakeRequest()
             .withHeaders(requiredHeaders.toSeq: _*)
             .withHeaders("x-correlation-id" -> correlationId)
             .withXmlBody(xmlBody)
@@ -120,7 +138,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
             </CC507C>
 
           val requestWithHeaders: FakeRequest[AnyContentAsXml] =
-            fakeRequest
+            FakeRequest()
               .withHeaders(requiredHeaders.toSeq: _*)
               .withHeaders("x-correlation-id" -> correlationId)
               .withXmlBody(xmlBody)
@@ -177,7 +195,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
             </CC507C>
 
           val requestWithHeaders: FakeRequest[AnyContentAsXml] =
-            fakeRequest
+            FakeRequest()
               .withHeaders(requiredHeaders.toSeq: _*)
               .withHeaders("x-correlation-id" -> correlationId)
               .withXmlBody(xmlBody)
@@ -240,7 +258,7 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
             </CC507C>
 
           val requestWithHeaders: FakeRequest[AnyContentAsXml] =
-            fakeRequest
+            FakeRequest()
               .withHeaders(requiredHeaders.toSeq: _*)
               .withHeaders("x-correlation-id" -> correlationId)
               .withXmlBody(xmlBody)
@@ -288,40 +306,26 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
     }
 
     "return 400 when required headers are missing" in new Setup {
-      val requestWithHeaders = fakeRequest.withHeaders(("some-header", "header-val"), ("another-header", "another"))
-      val result             = controller.message()(requestWithHeaders)
+      val requestWithHeaders =
+        FakeRequest()
+          .withHeaders(("some-header", "header-val"), ("another-header", "another"))
+      val result = controller.message()(requestWithHeaders)
       status(result) shouldBe Status.BAD_REQUEST
     }
   }
 
-  trait MrnSetup:
-    val requiredHeaders = Map(
-      "x-forwarded-host" -> "*",
-      "x-correlation-id" -> "*",
-      "date"             -> "*",
-      "authorization"    -> "Bearer *",
-      "content-type"     -> "application/xml",
-      "accept"           -> "application/xml",
-      "message-type"     -> "aesIE507Request"
-    )
-    when(mockAppConfig.requiredHeaders).thenReturn(requiredHeaders)
-    val validatedRequestAction = ValidatedRequestAction(mock[BodyParsers.Default], mockAppConfig)
-    when(
-      mockNotificationService.sendAckNotification(
-        any[NotificationData],
-        any[ActionCode],
-        any[String]
-      )(any[HeaderCarrier])
-    ).thenReturn(Future.successful(()))
-    val controller = new MessageController(Helpers.stubControllerComponents(), mockNotificationService, validatedRequestAction)
-
   "MRN error responses" - {
-    "return correct XML error response when MRN ends in A0" in new MrnSetup:
-      val request = TestData.requestWithMrn("24AB1234567890A0")
-      val result  = controller.message()(request)
+
+    "return correct XML error response when MRN ends in A0" in new Setup:
+      val request = requestWithMrn("24AB1234567890A0")
+        .withHeaders(requiredHeaders.toSeq*)
+        .withHeaders("x-correlation-id" -> correlationId)
+
+      val result = controller.message()(request)
+
       status(result) shouldBe Status.UNAUTHORIZED
 
-      header("x-correlation-id", result) shouldBe Some("some-correlation-id")
+      header("x-correlation-id", result) shouldBe Some("correlationId")
       header("date", result)               should not be empty
 
       val xml = scala.xml.XML.loadString(contentAsString(result))
@@ -329,15 +333,19 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       elementText(xml, "errorCode")     shouldBe "401"
       elementText(xml, "errorMessage")  shouldBe "UNAUTHORIZED"
       elementText(xml, "source")        shouldBe "AES front end"
-      elementText(xml, "correlationId") shouldBe "some-correlation-id"
+      elementText(xml, "correlationId") shouldBe "correlationId"
       elementText(xml, "timestamp")       should not be empty
 
-    "return correct XML error response when MRN ends in A1" in new MrnSetup:
-      val request = TestData.requestWithMrn("24AB1234567890A0A1")
-      val result  = controller.message()(request)
+    "return correct XML error response when MRN ends in A1" in new Setup:
+      val request = requestWithMrn("24AB1234567890A0A1")
+        .withHeaders(requiredHeaders.toSeq*)
+        .withHeaders("x-correlation-id" -> correlationId)
+
+      val result = controller.message()(request)
+
       status(result) shouldBe Status.NOT_FOUND
 
-      header("x-correlation-id", result) shouldBe Some("some-correlation-id")
+      header("x-correlation-id", result) shouldBe Some(correlationId)
       header("date", result)               should not be empty
 
       val xml = scala.xml.XML.loadString(contentAsString(result))
@@ -345,15 +353,20 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       elementText(xml, "errorCode")     shouldBe "404"
       elementText(xml, "errorMessage")  shouldBe "NOT_FOUND"
       elementText(xml, "source")        shouldBe "AES front end"
-      elementText(xml, "correlationId") shouldBe "some-correlation-id"
+      elementText(xml, "correlationId") shouldBe correlationId
       elementText(xml, "timestamp")       should not be empty
 
-    "return correct XML error response when MRN ends in A2" in new MrnSetup:
-      val request = TestData.requestWithMrn("24AB1234567890A2")
-      val result  = controller.message()(request)
+    "return correct XML error response when MRN ends in A2" in new Setup:
+      val request: FakeRequest[AnyContentAsXml] =
+        requestWithMrn("24AB1234567890A2")
+          .withHeaders(requiredHeaders.toSeq*)
+          .withHeaders("x-correlation-id" -> correlationId)
+
+      val result = controller.message()(request)
+
       status(result) shouldBe Status.INTERNAL_SERVER_ERROR
 
-      header("x-correlation-id", result) shouldBe Some("some-correlation-id")
+      header("x-correlation-id", result) shouldBe Some(correlationId)
       header("date", result)               should not be empty
 
       val xml = scala.xml.XML.loadString(contentAsString(result))
@@ -361,15 +374,20 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       elementText(xml, "errorCode")     shouldBe "500"
       elementText(xml, "errorMessage")  shouldBe "INTERNAL_SERVER_ERROR"
       elementText(xml, "source")        shouldBe "AES front end"
-      elementText(xml, "correlationId") shouldBe "some-correlation-id"
+      elementText(xml, "correlationId") shouldBe correlationId
       elementText(xml, "timestamp")       should not be empty
 
-    "return correct XML error response when MRN ends in A3" in new MrnSetup:
-      val request = TestData.requestWithMrn("24AB1234567890A0A3")
-      val result  = controller.message()(request)
+    "return correct XML error response when MRN ends in A3" in new Setup:
+      val request =
+        requestWithMrn("24AB1234567890A0A3")
+          .withHeaders(requiredHeaders.toSeq*)
+          .withHeaders("x-correlation-id" -> correlationId)
+
+      val result = controller.message()(request)
+
       status(result) shouldBe Status.BAD_REQUEST
 
-      header("x-correlation-id", result) shouldBe Some("some-correlation-id")
+      header("x-correlation-id", result) shouldBe Some(correlationId)
       header("date", result)               should not be empty
 
       val xml = scala.xml.XML.loadString(contentAsString(result))
@@ -377,6 +395,6 @@ class MessageControllerSpec extends BaseSpec with AllMocks:
       elementText(xml, "errorCode")     shouldBe "400"
       elementText(xml, "errorMessage")  shouldBe "VALIDATION_ERROR"
       elementText(xml, "source")        shouldBe "AES front end"
-      elementText(xml, "correlationId") shouldBe "some-correlation-id"
+      elementText(xml, "correlationId") shouldBe correlationId
       elementText(xml, "timestamp")       should not be empty
   }

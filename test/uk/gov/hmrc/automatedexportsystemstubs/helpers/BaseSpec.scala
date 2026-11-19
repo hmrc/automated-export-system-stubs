@@ -22,8 +22,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.{BeforeAndAfterEach, OptionValues}
 import org.scalatestplus.mockito.MockitoSugar
 import play.api.http.Status
-import play.api.mvc.AnyContentAsEmpty
-import play.api.test.{DefaultAwaitTimeout, FakeRequest}
+import play.api.test.DefaultAwaitTimeout
 import uk.gov.hmrc.http.HeaderCarrier
 
 import scala.concurrent.ExecutionContext
@@ -41,6 +40,3 @@ trait BaseSpec
 
   implicit lazy val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
   implicit lazy val hc: HeaderCarrier    = HeaderCarrier()
-
-  implicit val fakeRequest: FakeRequest[AnyContentAsEmpty.type] = FakeRequest()
-    .withHeaders(TestData.validAuthHeaders)

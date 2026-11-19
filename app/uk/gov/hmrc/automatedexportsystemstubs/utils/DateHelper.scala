@@ -17,6 +17,7 @@
 package uk.gov.hmrc.automatedexportsystemstubs.utils
 
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import java.time.{Instant, ZoneOffset}
 import java.util.Locale
 
@@ -24,6 +25,8 @@ object DateHelper:
 
   lazy val httpDateFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'UTC'", Locale.ENGLISH).withZone(ZoneOffset.UTC)
+
+  def truncateInstant(instant: Instant): Instant = instant.truncatedTo(ChronoUnit.SECONDS)
 
   def currentIsoTimestamp: String =
     httpDateFormatter.format(Instant.now())

@@ -29,6 +29,7 @@ import uk.gov.hmrc.automatedexportsystemstubs.utils.{NotificationXmlBuilder, Syn
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
+import java.time.{Clock, Instant}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.xml.NodeSeq
@@ -37,7 +38,8 @@ import scala.xml.NodeSeq
 class MessageController @Inject() (
   cc:                  ControllerComponents,
   notificationService: NotificationService,
-  validatedAction:     ValidatedRequestAction
+  validatedAction:     ValidatedRequestAction,
+  clock:               Clock
 )(implicit ec: ExecutionContext)
     extends BackendController(cc)
     with Logging:
@@ -60,6 +62,7 @@ class MessageController @Inject() (
         .errorResponse(
           SyncErrorResponseHelper.createErrorResponse(
             status = syncError.status,
+            timestamp = Instant.now(clock),
             correlationId = correlationId,
             errorMessage = syncError.message,
             detail = syncError.detail
@@ -146,6 +149,7 @@ class MessageController @Inject() (
           val response =
             SyncErrorResponseHelper.createErrorResponse(
               status = BAD_REQUEST,
+              timestamp = Instant.now(clock),
               correlationId = correlationId,
               errorMessage = "Expected XML body",
               detail = s"Payload submitted ${request.body.toString}"

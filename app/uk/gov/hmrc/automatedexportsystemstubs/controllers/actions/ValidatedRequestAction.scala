@@ -16,17 +16,14 @@
 
 package uk.gov.hmrc.automatedexportsystemstubs.controllers.actions
 
-import play.api.http.Status.BAD_REQUEST
-import play.api.http.{HeaderNames, MimeTypes}
+import play.api.http.{HeaderNames, MimeTypes, Status}
 import play.api.mvc.*
 import uk.gov.hmrc.automatedexportsystemstubs.config.AppConfig
 import uk.gov.hmrc.automatedexportsystemstubs.controllers.actions.request.ValidatedRequest
-import uk.gov.hmrc.automatedexportsystemstubs.models.ErrorDetail.toXml
-import uk.gov.hmrc.automatedexportsystemstubs.models.{ErrorDetail, SourceFaultDetail}
-import uk.gov.hmrc.automatedexportsystemstubs.utils.DateHelper
+import uk.gov.hmrc.automatedexportsystemstubs.utils.{DateHelper, SyncErrorResponseHelper}
 
 import java.time.format.DateTimeFormatter
-import java.time.{ZoneOffset, ZonedDateTime}
+import java.time.{Clock, Instant, ZoneOffset, ZonedDateTime}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -34,7 +31,8 @@ import scala.util.Try
 @Singleton
 class ValidatedRequestAction @Inject() (
   override val parser: BodyParsers.Default,
-  appConfig:           AppConfig
+  appConfig:           AppConfig,
+  clock:               Clock
 )(implicit val executionContext: ExecutionContext)
     extends ActionRefiner[Request, ValidatedRequest]
     with ActionBuilder[ValidatedRequest, AnyContent]:
@@ -78,19 +76,17 @@ class ValidatedRequestAction @Inject() (
       if (invalidHeaders.nonEmpty) {
         val msg = s"Missing or invalid mandatory headers: ${invalidHeaders.keys.mkString(", ")}"
 
-        val errorDetail = ErrorDetail(
-          timestamp = DateHelper.currentIsoTimestamp,
+        val errorResponse: Result = SyncErrorResponseHelper.createErrorResponse(
+          Status.BAD_REQUEST,
+          timestamp = Instant.now(clock),
           correlationId = request.headers.get("x-correlation-id").getOrElse(""),
-          errorCode = BAD_REQUEST.toString,
           errorMessage = msg,
-          source = "AES front end",
-          sourceFaultDetail = SourceFaultDetail(
-            detail = Seq(msg)
-          )
+          detail = msg
         )
+
         Left(
           buildResponse(
-            Results.BadRequest(toXml(errorDetail).toString()).as("application/xml"),
+            errorResponse,
             request
           )
         )

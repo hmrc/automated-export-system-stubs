@@ -19,17 +19,20 @@ package uk.gov.hmrc.automatedexportsystemstubs.utils
 import play.api.mvc.{Result, Results}
 import uk.gov.hmrc.automatedexportsystemstubs.models.{ErrorDetail, SourceFaultDetail}
 
+import java.time.Instant
+
 object SyncErrorResponseHelper:
 
   def createErrorResponse(
     status:        Int,
+    timestamp:     Instant,
     correlationId: String,
     errorMessage:  String,
     detail:        String
   ): Result =
 
     val errorDetail = ErrorDetail(
-      timestamp = DateHelper.currentIsoTimestamp,
+      timestamp = DateHelper.truncateInstant(timestamp).toString,
       correlationId = correlationId,
       errorCode = status.toString,
       errorMessage = errorMessage,

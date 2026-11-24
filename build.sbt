@@ -35,3 +35,8 @@ lazy val it = (project in file("it"))
     DefaultBuildSettings.itSettings()
   )
   .settings(scalacOptions ~= (options => options.distinct))
+
+addCommandAlias(
+  "runAllChecks",
+  ";clean;compile;it/compile;scalafmtAll;coverage;test;it/test;coverageReport"
+)
